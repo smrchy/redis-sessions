@@ -31,7 +31,7 @@ This is a NodeJS module to keep sessions in a Redis datastore and add some usefu
 ### Setup and creating the first session
 
 ```javascript
-RedisSessions = require("../redis-sessions");
+RedisSessions = require("redis-sessions");
 rs = new RedisSessions();
 
 app = "myapp";
