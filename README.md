@@ -77,7 +77,7 @@ rs.set({
     }
     */  
   });
-``
+```
 
 
 ### Get a session for a token
