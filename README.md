@@ -28,46 +28,46 @@ This is a NodeJS module to keep sessions in a Redis datastore and add some usefu
   * Query a session by supplying the session token.  
     The `idle` time is the duration in seconds since when this session was used before this request.
     Will return the complete object:  
-  	
-  		{  
-  			"id":"user123",
-  			"r": 123,  // The number of reads on this token
-  			"w": 4,  // The number of writes on this token
+    
+      {  
+        "id":"user123",
+        "r": 123,  // The number of reads on this token
+        "w": 4,  // The number of writes on this token
         "idle": 21,  // The idle time in seconds.
-  			"d":
-  				{
-  					"unread_msgs": "12",
-  					"last_action": "/read/news",
-  					"birthday": "2013-08-13"
-  				}
-  		}
+        "d":
+          {
+            "unread_msgs": "12",
+            "last_action": "/read/news",
+            "birthday": "2013-08-13"
+          }
+      }
  
   * Set/Update/Delete parameters by supplying a token and some data.  
   The `data` object contains a simple key/value list where values are **always** strings.  
   To remove keys set them to `null`, keys that are not supplied will not be touched:  
   
-  		{
-  			"token": "d131dd02c5e6eec4d131c69821bcb6a88393dd02c5e6eec4d131dd02c5e6eec4",
-  			"d":
-  				{
-  					"unread_msgs": null,
-  					"last_action": "/read/msg/2121"
-  				}
-  		}
-  		
+      {
+        "token": "d131dd02c5e6eec4d131c69821bcb6a88393dd02c5e6eec4d131dd02c5e6eec4",
+        "d":
+          {
+            "unread_msgs": null,
+            "last_action": "/read/msg/2121"
+          }
+      }
+      
    * After the above operation  
    the resulting object will look like this:    
    
-   		{
-   			"id":"user123",
-   			"r": 124,
-   			"w": 5,
+       {
+         "id":"user123",
+         "r": 124,
+         "w": 5,
         "idle": 1,
-   			"data": {
-   				"last_action": "/read/msg/2121",
-   				"birthday": "2013-08-13"
-   			}
-   		}
+         "data": {
+           "last_action": "/read/msg/2121",
+           "birthday": "2013-08-13"
+         }
+       }
 
 ## Usage in NodeJS
 
