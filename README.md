@@ -144,3 +144,57 @@ rs.set({
   });
 ```
 
+### Kill
+
+Kill a single session by supplying app and token:
+
+```javascript
+
+rs.kill({
+  app: app,
+  token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"},
+  function(err, resp) {
+    /*
+    resp contains the result:
+
+    {kill: 1}
+    */  
+  });
+```
+
+Note: If {kill: 0} is returned the session was not found.
+
+
+### Activity
+
+Query the amount of active session within the last 10 minutes (600 seconds).
+
+```javascript
+
+rs.activity({
+  app: app,
+  dt: 600},
+  function(err, resp) {
+    /*
+    resp contains the activity:
+
+    {activity: 12}
+    */  
+  });
+```
+
+### Killall
+
+Kill all sessions of an app:
+
+```javascript
+
+rs.killall({app: app},
+  function(err, resp) {
+    /*
+    resp contains the result:
+
+    {kill: 12} // The amount of sessions that were killed
+    */  
+  });
+```
