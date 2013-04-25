@@ -1,5 +1,4 @@
 _ = require "underscore"
-path = require "path"
 should = require "should"
 async = require "async"
 RedisSessions = require "../index" 
