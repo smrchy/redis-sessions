@@ -75,7 +75,6 @@ describe 'Redis-Sessions Test', ->
 		
 		it 'Get a Session with valid token format but token should not exist', (done) ->
 			rs.get {app: app1, token: "0123456789012345678901234567890123456789012345678901234567891234"}, (err, resp) ->
-				console.log resp
 				should.not.exist(err)
 				resp.should.be.a('object')
 				resp.should.not.have.keys('id')
@@ -116,7 +115,6 @@ describe 'Redis-Sessions Test', ->
 		
 		it 'Create a session with valid data: should return a token', (done) ->
 			rs.create {app: app1, id:"user1", ip: "127.0.0.1", ttl: 30}, (err, resp) ->
-				console.log resp
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('token')
@@ -307,7 +305,6 @@ describe 'Redis-Sessions Test', ->
 			return
 		it 'Set some params for token2: should work', ( done ) ->
 			rs.set {app: app1, token: token2, d: {hi: "ho", count: 120, premium: true, nix:null }}, (err, resp) ->
-				console.log resp
 				should.not.exist(err)
 				resp.should.be.a('object')
 				done()

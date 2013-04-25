@@ -87,7 +87,6 @@
           app: app1,
           token: "0123456789012345678901234567890123456789012345678901234567891234"
         }, function(err, resp) {
-          console.log(resp);
           should.not.exist(err);
           resp.should.be.a('object');
           resp.should.not.have.keys('id');
@@ -137,7 +136,6 @@
           ip: "127.0.0.1",
           ttl: 30
         }, function(err, resp) {
-          console.log(resp);
           should.not.exist(err);
           should.exist(resp);
           resp.should.have.keys('token');
@@ -401,7 +399,6 @@
             nix: null
           }
         }, function(err, resp) {
-          console.log(resp);
           should.not.exist(err);
           resp.should.be.a('object');
           done();
