@@ -2,7 +2,11 @@
 
 There is a need to maintain a **universal session across different application server platforms**.
 
-**It should be simple and straightforward to query a session and set session variables.**
+This is a NodeJS module to keep sessions in a Redis datastore and add some useful methods.
+
+## Installation
+
+`npm install redis-sessions`
 
 Features:
 
@@ -62,4 +66,7 @@ Features:
    				"birthday": "2013-08-13"
    			}
    		}
-   
+
+## Usage
+
+must.write.more.docs
