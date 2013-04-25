@@ -1,5 +1,7 @@
 # Redis Universal Sessions
 
+[![Build Status](https://secure.travis-ci.org/smrchy/redis-sessions.png?branch=master)](http://travis-ci.org/smrchy/redis-sessions)
+
 There is a need to maintain a **universal session across different application server platforms**.
 
 This is a NodeJS module to keep sessions in a Redis datastore and add some useful methods.
@@ -8,7 +10,7 @@ This is a NodeJS module to keep sessions in a Redis datastore and add some usefu
 
 `npm install redis-sessions`
 
-Features:
+## Features
 
 * Every session belongs to an app (e.g. `webapp`, `app_cust123`)
   * TODO: Get an array of all sessions of an app, complete with `lastactivity`, `ip` which were active within the last *n* seconds.
@@ -67,6 +69,6 @@ Features:
    			}
    		}
 
-## Usage
+## Usage in NodeJS
 
 must.write.more.docs
