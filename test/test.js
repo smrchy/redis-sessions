@@ -10,7 +10,7 @@
 
   async = require("async");
 
-  RedisSessions = require("../redis-sessions");
+  RedisSessions = require("../index");
 
   describe('Redis-Sessions Test', function() {
     var app1, app2, rs, token1, token2, token3;

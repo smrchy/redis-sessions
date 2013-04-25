@@ -2,7 +2,7 @@ _ = require "underscore"
 path = require "path"
 should = require "should"
 async = require "async"
-RedisSessions = require "../redis-sessions" 
+RedisSessions = require "../index" 
 
 describe 'Redis-Sessions Test', ->
 	rs = null
