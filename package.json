@@ -1,0 +1,27 @@
+{
+    "name": "redis-sessions",
+    "description": "A universal session store for Redis",
+    "version": "0.1.0",
+    "author": "P. Liess <smrchy+npm@gmail.com>",
+    "engines": {
+		"node": "> 0.8.10"
+	},
+	"dependencies": {
+		"hiredis": "*",
+		"redis": "*",
+		"underscore": "= 1.4.4"
+	},
+	"devDependencies": {
+		"mocha": "*",
+		"should": "*",
+		"async": "*"
+	},
+	"keywords": [
+	    "sessions",
+	    "redis",
+	    "sinatra",
+	    "session",
+	    "users",
+	    "activity"
+	]
+}
