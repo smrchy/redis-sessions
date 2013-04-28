@@ -70,26 +70,17 @@
       }
       now = this._now();
       thekey = "" + this.redisns + options.app + ":" + options.token;
-      this.redis.hmget(thekey, "id", "r", "w", "ttl", "d", "la", function(err, resp) {
+      this.redis.hmget(thekey, "id", "r", "w", "ttl", "d", "la", "ip", function(err, resp) {
         var mc, o;
 
-        if (resp[0] === null) {
-          cb(null, {});
+        if (err) {
+          cb(err);
           return;
         }
-        o = {
-          id: resp[0],
-          r: Number(resp[1]),
-          w: Number(resp[2]),
-          ttl: Number(resp[3]),
-          idle: now - resp[5]
-        };
-        if (o.ttl < o.idle) {
+        o = _this._prepareSession(resp);
+        if (o === null) {
           cb(null, {});
           return;
-        }
-        if (resp[4]) {
-          o.d = JSON.parse(resp[4]);
         }
         if (options._noupdate) {
           cb(null, o);
@@ -182,6 +173,72 @@
       });
     };
 
+    RedisSessions.prototype.soid = function(options, cb) {
+      var _this = this;
+
+      options = this._validate(options, ["app", "id"], cb);
+      if (options === false) {
+        return;
+      }
+      this.redis.zrevrange("" + this.redisns + options.app + ":_sessions", 0, -1, function(err, resp) {
+        var e, mc, toget, _i, _len;
+
+        if (err) {
+          cb(err);
+          return;
+        }
+        if (!resp.length) {
+          cb(null, {
+            sessions: []
+          });
+          return;
+        }
+        toget = [];
+        for (_i = 0, _len = resp.length; _i < _len; _i++) {
+          e = resp[_i];
+          if (e.split(':')[1] === options.id) {
+            toget.push(e.split(':')[0]);
+          }
+        }
+        if (!toget.length) {
+          cb(null, {
+            sessions: []
+          });
+        }
+        mc = (function() {
+          var _j, _len1, _results;
+
+          _results = [];
+          for (_j = 0, _len1 = toget.length; _j < _len1; _j++) {
+            e = toget[_j];
+            _results.push(["hmget", "" + this.redisns + options.app + ":" + e, "id", "r", "w", "ttl", "d", "la", "ip"]);
+          }
+          return _results;
+        }).call(_this);
+        _this.redis.multi(mc).exec(function(err, resp) {
+          var o;
+
+          if (err) {
+            cb(err);
+            return;
+          }
+          o = (function() {
+            var _j, _len1, _results;
+
+            _results = [];
+            for (_j = 0, _len1 = resp.length; _j < _len1; _j++) {
+              e = resp[_j];
+              _results.push(this._prepareSession(e));
+            }
+            return _results;
+          }).call(_this);
+          cb(null, {
+            sessions: o
+          });
+        });
+      });
+    };
+
     RedisSessions.prototype.set = function(options, cb) {
       var _this = this;
 
@@ -251,6 +308,30 @@
 
     RedisSessions.prototype._now = function() {
       return parseInt((new Date()).getTime() / 1000);
+    };
+
+    RedisSessions.prototype._prepareSession = function(session) {
+      var now, o;
+
+      now = this._now();
+      if (session[0] === null) {
+        return null;
+      }
+      o = {
+        id: session[0],
+        r: Number(session[1]),
+        w: Number(session[2]),
+        ttl: Number(session[3]),
+        idle: now - session[5],
+        ip: session[6]
+      };
+      if (o.ttl < o.idle) {
+        return null;
+      }
+      if (session[4]) {
+        o.d = JSON.parse(session[4]);
+      }
+      return o;
     };
 
     RedisSessions.prototype._VALID = {

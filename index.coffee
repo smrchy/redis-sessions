@@ -120,31 +120,16 @@ class RedisSessions
 			return
 		now = @_now()
 		thekey = "#{@redisns}#{options.app}:#{options.token}"
-		@redis.hmget thekey, "id", "r", "w", "ttl", "d", "la", (err, resp) =>
-			if resp[0] is null
+		@redis.hmget thekey, "id", "r", "w", "ttl", "d", "la", "ip", (err, resp) =>
+			if err
+				cb(err)
+				return
+			# Prepare the data
+			o = @_prepareSession(resp)
+			
+			if o is null
 				cb(null, {})
 				return
-			# Create the return object
-			o = 
-				id: resp[0]
-				r: Number(resp[1])
-				w: Number(resp[2])
-				ttl: Number(resp[3])
-				idle: now - resp[5]
-
-			# Oh wait. If o.ttl < o.idle we need to bail out.
-			if o.ttl < o.idle
-				# We return an empty session object
-				cb(null, {})
-				# And delete this session
-
-
-				return
-
-			# Parse the content of `d`
-			if resp[4]
-				o.d = JSON.parse(resp[4])
-
 			# Secret switch to disable updating the stats - we don't need this when we kill a session
 			if options._noupdate
 				cb(null, o)
@@ -238,6 +223,54 @@ class RedisSessions
 			return
 
 
+	# ## Sessions of ID (soid)
+	#
+	# Returns all sessions of a single id
+	#
+	# **Parameters:**
+	#
+	# An object with the following keys:
+	#
+	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
+	# * `id` must be [a-zA-Z0-9_-] and 1-64 chars long
+	#
+
+	soid: (options, cb) ->
+		options = @_validate(options, ["app","id"], cb)
+		if options is false
+			return
+
+		@redis.zrevrange "#{@redisns}#{options.app}:_sessions", 0, -1, (err, resp) =>
+			if err
+				cb(err)
+				return
+			if not resp.length
+				cb(null, {sessions: []})
+				return
+			toget = []
+			# Grab all sessions we need to get
+			for e in resp
+				if e.split(':')[1] is options.id
+					toget.push(e.split(':')[0])
+			# Bail out if no sessions qualify
+			if not toget.length
+				cb(null, {sessions: []})
+
+			# Now get all qualified sessions from Redis
+			mc = for e in toget
+				["hmget", "#{@redisns}#{options.app}:#{e}", "id", "r", "w", "ttl", "d", "la", "ip"]
+			@redis.multi(mc).exec (err, resp) =>
+				if err
+					cb(err)
+					return
+				o = for e in resp
+					@_prepareSession(e)
+
+				cb(null, {sessions: o})
+				return
+			return
+		return
+
 	# ## Set
 	#
 	# Set/Update/Delete custom data for a single session.  
@@ -247,6 +280,7 @@ class RedisSessions
 	# Keys with all values except `null` will be stored. If a key containts `null` the key will be removed.
 	# 
 	# Note: If `d` already contains keys that are not supplied in the set request then these keys will be untouched.
+	#
 	# **Parameters:**
 	# 
 	# An object with the following keys:
@@ -298,6 +332,8 @@ class RedisSessions
 				return
 			return
 		return
+
+
 	# Helpers
 
 	_createMultiStatement: (app, token, id, ttl) ->
@@ -323,6 +359,27 @@ class RedisSessions
 	_now: ->
 		parseInt((new Date()).getTime() / 1000)
 
+	_prepareSession: (session) ->
+		now = @_now()
+		if session[0] is null
+			return null
+		# Create the return object
+		o = 
+			id: session[0]
+			r: Number(session[1])
+			w: Number(session[2])
+			ttl: Number(session[3])
+			idle: now - session[5]
+			ip: session[6]
+
+		# Oh wait. If o.ttl < o.idle we need to bail out.
+		if o.ttl < o.idle
+			# We return an empty session object
+			return null
+		# Parse the content of `d`
+		if session[4]
+			o.d = JSON.parse(session[4])
+		o
 
 	_VALID:
 		app:	/^([a-zA-Z0-9_-]){3,20}$/

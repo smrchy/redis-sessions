@@ -194,6 +194,28 @@ describe 'Redis-Sessions Test', ->
 				return
 			return
 
+		it 'Create a session for bulkuser_999 with valid data: should return a token', (done) ->
+			rs.create {app: app2, id:"bulkuser_999", ip: "127.0.0.2", ttl: 30}, (err, resp) ->
+				should.not.exist(err)
+				should.exist(resp)
+				resp.should.have.keys('token')
+				done()
+				return
+			return
+
+		it 'Check if we have 2 sessions for bulkuser_999', (done) ->
+			rs.soid {app: app2, id: "bulkuser_999"}, (err, resp) ->
+				should.not.exist(err)
+				should.exist(resp)
+				resp.should.have.keys('sessions')
+				resp.sessions.length.should.equal(2)
+				resp.sessions[0].id.should.equal("bulkuser_999")
+				done()
+				return
+			return
+
+
+
 		return
 
 
@@ -204,7 +226,7 @@ describe 'Redis-Sessions Test', ->
 			rs.get {app: app1, token: token1}, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.a('object')
-				resp.should.have.keys('id','r','w','ttl','idle')
+				resp.should.have.keys('id','r','w','ttl','idle','ip')
 				resp.id.should.equal("user1")
 				resp.ttl.should.equal(30)
 				done()
@@ -215,7 +237,7 @@ describe 'Redis-Sessions Test', ->
 			rs.get {app: app1, token: token1}, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.a('object')
-				resp.should.have.keys('id','r','w','ttl','idle')
+				resp.should.have.keys('id','r','w','ttl','idle','ip')
 				resp.id.should.equal("user1")
 				resp.ttl.should.equal(30)
 				resp.r.should.equal(2)
@@ -257,7 +279,7 @@ describe 'Redis-Sessions Test', ->
 			rs.get {app: app1, token: token2}, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.a('object')
-				resp.should.have.keys('id','r','w','ttl','idle')
+				resp.should.have.keys('id','r','w','ttl','idle','ip')
 				resp.id.should.equal("user2")
 				resp.ttl.should.equal(10)
 				done()

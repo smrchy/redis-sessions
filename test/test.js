@@ -239,6 +239,32 @@
           done();
         });
       });
+      it('Create a session for bulkuser_999 with valid data: should return a token', function(done) {
+        rs.create({
+          app: app2,
+          id: "bulkuser_999",
+          ip: "127.0.0.2",
+          ttl: 30
+        }, function(err, resp) {
+          should.not.exist(err);
+          should.exist(resp);
+          resp.should.have.keys('token');
+          done();
+        });
+      });
+      it('Check if we have 2 sessions for bulkuser_999', function(done) {
+        rs.soid({
+          app: app2,
+          id: "bulkuser_999"
+        }, function(err, resp) {
+          should.not.exist(err);
+          should.exist(resp);
+          resp.should.have.keys('sessions');
+          resp.sessions.length.should.equal(2);
+          resp.sessions[0].id.should.equal("bulkuser_999");
+          done();
+        });
+      });
     });
     describe('GET: Part 2', function() {
       it('Get the Session for token1: should work', function(done) {
@@ -248,7 +274,7 @@
         }, function(err, resp) {
           should.not.exist(err);
           resp.should.be.a('object');
-          resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle');
+          resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
           resp.id.should.equal("user1");
           resp.ttl.should.equal(30);
           done();
@@ -261,7 +287,7 @@
         }, function(err, resp) {
           should.not.exist(err);
           resp.should.be.a('object');
-          resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle');
+          resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
           resp.id.should.equal("user1");
           resp.ttl.should.equal(30);
           resp.r.should.equal(2);
@@ -310,7 +336,7 @@
         }, function(err, resp) {
           should.not.exist(err);
           resp.should.be.a('object');
-          resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle');
+          resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
           resp.id.should.equal("user2");
           resp.ttl.should.equal(10);
           done();

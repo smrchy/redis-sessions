@@ -21,9 +21,9 @@ This is a NodeJS module to keep sessions in a Redis datastore and add some usefu
 
 ## Additional methods
 
-* TODO: Get an array of all sessions of an app, complete with `lastactivity`, `ip` which were active within the last *n* seconds.
+* TODO: Get an array of all sessions of an app, complete with `idle`, `ip` which were active within the last *n* seconds.
 * Get the amount of active sessions of an app within the last *n* seconds.
-* TODO: Get all sessions of a single id.
+* Get all sessions of a single id.
 * TODO: Kill all sessions that belong to a single id. E.g. log out user123 on all devices.
 
 ## Usage in NodeJS
@@ -179,6 +179,37 @@ rs.activity({
     resp contains the activity:
 
     {activity: 12}
+    */  
+  });
+```
+### Sessions of Id
+
+Get all sessions within an app that belong to a single id. This would be all sessions from a single user in case he is logged in on different browsers / devices.
+
+```javascript
+
+rs.soid({
+  app: app,
+  id: "bulkuser_999"},
+  function(err, resp) {
+    /*
+    resp contains the sessions:
+
+    { sessions: 
+       [ { id: 'bulkuser_999',
+           r: 1,
+           w: 1,
+           ttl: 30,
+           idle: 0,
+           ip: '127.0.0.2' },
+         { id: 'bulkuser_999',
+           r: 1,
+           w: 1,
+           ttl: 7200,
+           idle: 0,
+           ip: '127.0.0.1' }
+        ] 
+    }
     */  
   });
 ```
