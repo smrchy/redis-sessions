@@ -30,11 +30,11 @@ Make sure Redis runs locally on localhost and run the test: `npm test`
 
 ## Performance
 
-With Redis being run on the same machine the test script (run via `npm test`) on a 2009 iMac:
+With Redis being run on the same machine the test script (run via `npm test`) on a 2011 iMac:
 
-* Creates 1000 sessions in around 240ms.
-* Gets those 1000 sessions and validates them in around 260ms.
-* Removes those 1000 sessions in 25ms.
+* Creates 1000 sessions in around 170ms.
+* Gets those 1000 sessions and validates them in around 155ms.
+* Removes those 1000 sessions in 18ms.
 
 ## Useage via REST
 

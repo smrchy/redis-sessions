@@ -199,10 +199,13 @@ class RedisSessions
 					return
 				# NOW. If the last reply of the multi statement is 0 then this was the last session.  
 				# We need to remove the ZSET for this user also:
-				console.log typeof resp[4], resp[4]
 				if resp[4] is 0
 					@redis.zrem "#{@redisns}#{options.app}:_users", userid, ->
+						if err
+							cb(err)
+							return
 						cb(null, {kill: resp[3]})
+						return
 				else
 					cb(null, {kill: resp[3]})
 				return
@@ -251,6 +254,9 @@ class RedisSessions
 				["del"].concat(tokenkeys)
 			]
 			@redis.multi(mc).exec (err, resp) ->
+				if err
+					cb(err)
+					return
 				cb(null, {kill: resp[0]})
 				return
 			return
@@ -272,7 +278,7 @@ class RedisSessions
 		if options is false
 			return
 
-		@redis.zrevrange "#{@redisns}#{options.app}:_sessions", 0, -1, (err, resp) =>
+		@redis.smembers "#{@redisns}#{options.app}:us:#{options.id}", (err, resp) =>
 			if err
 				cb(err)
 				return
@@ -281,17 +287,13 @@ class RedisSessions
 				return
 			mc = []
 			# Grab all sessions we need to get
-			for e in resp when e.split(':')[1] is options.id
-				token = e.split(':')[0]
+			for token in resp
 				# Add to the multi commands array
 				mc.push(["zrem", "#{@redisns}#{options.app}:_sessions", "#{token}:#{options.id}"])
-				mc.push(["srem", "#{@redisns}#{options.app}:us:#{options.id}", options.token])
+				mc.push(["srem", "#{@redisns}#{options.app}:us:#{options.id}", token])
 				mc.push(["zrem", "#{@redisns}SESSIONS", "#{options.app}:#{token}:#{options.id}"])
 				mc.push(["del", "#{@redisns}#{options.app}:#{token}"])
 			mc.push(["exists", "#{@redisns}#{options.app}:us:#{options.id}"])
-			# Bail out if no sessions qualify
-			if not mc.length
-				cb(null, {kill: 0})
 
 			@redis.multi(mc).exec (err, resp) =>
 				if err
@@ -300,7 +302,6 @@ class RedisSessions
 				# get the amount of deleted sessions
 				total = 0
 				for e in resp[3...] by 4
-					console.log e
 					total = total + e
 
 				# NOW. If the last reply of the multi statement is 0 then this was the last session.  
@@ -400,24 +401,14 @@ class RedisSessions
 		if options is false
 			return
 
-		@redis.zrevrange "#{@redisns}#{options.app}:_sessions", 0, -1, (err, resp) =>
+		@redis.smembers "#{@redisns}#{options.app}:us:#{options.id}", (err, resp) =>
 			if err
 				cb(err)
 				return
 			if not resp.length
 				cb(null, {sessions: []})
 				return
-			toget = []
-			# Grab all sessions we need to get
-			for e in resp
-				if e.split(':')[1] is options.id
-					toget.push(e.split(':')[0])
-			# Bail out if no sessions qualify
-			if not toget.length
-				cb(null, {sessions: []})
-				return
-			# Now get all qualified sessions from Redis
-			mc = for e in toget
+			mc = for e in resp
 				["hmget", "#{@redisns}#{options.app}:#{e}", "id", "r", "w", "ttl", "d", "la", "ip"]
 			@redis.multi(mc).exec (err, resp) =>
 				if err
