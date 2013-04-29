@@ -46,7 +46,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       if (this._validate(options, ["app", "dt"], cb) === false) {
         return;
       }
-      this.redis.zcount("" + this.redisns + options.app + ":_sessions", this._now() - options.dt, "+inf", function(err, resp) {
+      this.redis.zcount("" + this.redisns + options.app + ":_users", this._now() - options.dt, "+inf", function(err, resp) {
         if (err) {
           cb(err);
           return;
@@ -72,7 +72,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           cb(err);
           return;
         }
-        if (resp[2] !== "OK") {
+        if (resp[3] !== "OK") {
           cb("Unknow error");
           return;
         }
@@ -140,7 +140,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           });
           return;
         }
-        mc = [["zrem", "" + _this.redisns + options.app + ":_sessions", "" + options.token + ":" + resp.id], ["zrem", "" + _this.redisns + "SESSIONS", "" + options.app + ":" + options.token + ":" + resp.id], ["del", "" + _this.redisns + options.app + ":" + options.token]];
+        mc = [["zrem", "" + _this.redisns + options.app + ":_sessions", "" + options.token + ":" + resp.id], ["zrem", "" + _this.redisns + options.app + ":_users", resp.id], ["zrem", "" + _this.redisns + "SESSIONS", "" + options.app + ":" + options.token + ":" + resp.id], ["del", "" + _this.redisns + options.app + ":" + options.token]];
         _this.redis.multi(mc).exec(function(err, resp) {
           if (err) {
             cb(err);
@@ -160,16 +160,17 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
     };
 
     RedisSessions.prototype.killall = function(options, cb) {
-      var appkey,
+      var appsessionkey, appuserkey,
         _this = this;
 
       options = this._validate(options, ["app"], cb);
       if (options === false) {
         return;
       }
-      appkey = "" + this.redisns + options.app + ":_sessions";
-      this.redis.zrange(appkey, 0, -1, function(err, resp) {
-        var e, globalkeys, mc, tokenkeys, _i, _len;
+      appsessionkey = "" + this.redisns + options.app + ":_sessions";
+      appuserkey = "" + this.redisns + options.app + ":_users";
+      this.redis.zrange(appsessionkey, 0, -1, function(err, resp) {
+        var e, globalkeys, mc, thekey, tokenkeys, userkeys, _i, _len;
 
         if (err) {
           cb(err);
@@ -181,12 +182,15 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
         }
         globalkeys = [];
         tokenkeys = [];
+        userkeys = [];
         for (_i = 0, _len = resp.length; _i < _len; _i++) {
           e = resp[_i];
+          thekey = e.split(":");
           globalkeys.push("" + options.app + ":" + e);
-          tokenkeys.push("" + _this.redisns + options.app + ":" + (e.split(':')[0]));
+          tokenkeys.push("" + _this.redisns + options.app + ":" + thekey[0]);
+          userkeys.push(thekey[1]);
         }
-        mc = [["zrem", appkey].concat(resp), ["zrem", "" + _this.redisns + "SESSIONS"].concat(globalkeys), ["del"].concat(tokenkeys)];
+        mc = [["zrem", appsessionkey].concat(resp), ["zrem", appuserkey].concat(_.uniq(userkeys)), ["zrem", "" + _this.redisns + "SESSIONS"].concat(globalkeys), ["del"].concat(tokenkeys)];
         _this.redis.multi(mc).exec(function(err, resp) {
           cb(null, {
             kill: resp[0]
@@ -223,6 +227,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           }
           token = e.split(':')[0];
           mc.push(["zrem", "" + _this.redisns + options.app + ":_sessions", "" + token + ":" + options.id]);
+          mc.push(["zrem", "" + _this.redisns + options.app + ":_users", options.id]);
           mc.push(["zrem", "" + _this.redisns + "SESSIONS", "" + options.app + ":" + token + ":" + options.id]);
           mc.push(["del", "" + _this.redisns + options.app + ":" + token]);
         }
@@ -239,14 +244,9 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
             return;
           }
           total = 0;
-          for (_j = 0, _len1 = resp.length; _j < _len1; _j++) {
+          for (_j = 0, _len1 = resp.length; _j < _len1; _j += 4) {
             e = resp[_j];
-            total += e;
-          }
-          total = total / 3;
-          if (total !== resp.length / 3) {
-            cb("Unknow Error: " + JSON.stringify(resp), null);
-            return;
+            total = total + e;
           }
           cb(null, {
             kill: total
@@ -302,7 +302,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
             cb(err);
             return;
           }
-          resp.w = reply[2];
+          resp.w = reply[3];
           cb(null, resp);
         });
       });
@@ -379,7 +379,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       var now;
 
       now = this._now();
-      return [["zadd", "" + this.redisns + app + ":_sessions", now, "" + token + ":" + id], ["zadd", "" + this.redisns + "SESSIONS", now + ttl, "" + app + ":" + token + ":" + id]];
+      return [["zadd", "" + this.redisns + app + ":_sessions", now, "" + token + ":" + id], ["zadd", "" + this.redisns + app + ":_users", now, id], ["zadd", "" + this.redisns + "SESSIONS", now + ttl, "" + app + ":" + token + ":" + id]];
     };
 
     RedisSessions.prototype._createToken = function() {

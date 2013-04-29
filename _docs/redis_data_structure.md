@@ -23,6 +23,16 @@ A sorted set of all sessions of a single app
 
 **MEMBER** The `{sessionToken}:{id}`
 
+
+## rs:{app}:_users ZSET
+
+A sorted set of all unique users ids of a single app
+
+**SCORE** Last activity (unix timestamp)
+
+**MEMBER** The `{id}`
+
+
 ## rs:SESSIONS *ZSET*
 
 A sorted set of all sessions across all apps. This is used to figure out which sessions need to be flushed.

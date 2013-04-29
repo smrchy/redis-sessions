@@ -38,7 +38,7 @@ class RedisSessions
 
 	# ## Activity
 	#
-	# Get the amount of active users within the last *n* seconds
+	# Get the number of active unique users (not sessions!) within the last *n* seconds
 	#
 	# **Parameters:**
 	#
@@ -48,7 +48,7 @@ class RedisSessions
 	activity: (options, cb) =>
 		if @_validate(options, ["app","dt"],cb) is false
 			return
-		@redis.zcount "#{@redisns}#{options.app}:_sessions", @_now() - options.dt, "+inf", (err, resp) ->
+		@redis.zcount "#{@redisns}#{options.app}:_users", @_now() - options.dt, "+inf", (err, resp) ->
 			if err
 				cb(err)
 				return
@@ -111,7 +111,7 @@ class RedisSessions
 			if err 
 				cb(err)
 				return
-			if resp[2] isnt "OK"
+			if resp[3] isnt "OK"
 				cb("Unknow error")
 				return
 			cb(null, {token: token})
@@ -186,6 +186,7 @@ class RedisSessions
 				return
 			mc = [
 				["zrem", "#{@redisns}#{options.app}:_sessions", "#{options.token}:#{resp.id}"]
+				["zrem", "#{@redisns}#{options.app}:_users", resp.id]
 				["zrem", "#{@redisns}SESSIONS", "#{options.app}:#{options.token}:#{resp.id}"]
 				["del", "#{@redisns}#{options.app}:#{options.token}"]
 			]
@@ -215,8 +216,9 @@ class RedisSessions
 		if options is false
 			return
 		# First we need to get all sessions of the app
-		appkey = "#{@redisns}#{options.app}:_sessions"
-		@redis.zrange appkey, 0, -1, (err, resp) =>
+		appsessionkey = "#{@redisns}#{options.app}:_sessions"
+		appuserkey = "#{@redisns}#{options.app}:_users"
+		@redis.zrange appsessionkey, 0, -1, (err, resp) =>
 			if err
 				cb(err)
 				return
@@ -225,11 +227,15 @@ class RedisSessions
 				return
 			globalkeys = []
 			tokenkeys = []
+			userkeys = []
 			for e in resp
+				thekey = e.split(":")
 				globalkeys.push("#{options.app}:#{e}")
-				tokenkeys.push("#{@redisns}#{options.app}:#{e.split(':')[0]}")
+				tokenkeys.push("#{@redisns}#{options.app}:#{thekey[0]}")
+				userkeys.push(thekey[1])
 			mc = [
-				["zrem", appkey].concat(resp)
+				["zrem", appsessionkey].concat(resp)
+				["zrem", appuserkey].concat(_.uniq(userkeys))
 				["zrem", "#{@redisns}SESSIONS"].concat(globalkeys)
 				["del"].concat(tokenkeys)
 			]
@@ -268,6 +274,7 @@ class RedisSessions
 				token = e.split(':')[0]
 				# Add to the multi commands array
 				mc.push(["zrem", "#{@redisns}#{options.app}:_sessions", "#{token}:#{options.id}"])
+				mc.push(["zrem", "#{@redisns}#{options.app}:_users", options.id])
 				mc.push(["zrem", "#{@redisns}SESSIONS", "#{options.app}:#{token}:#{options.id}"])
 				mc.push(["del", "#{@redisns}#{options.app}:#{token}"])
 			# Bail out if no sessions qualify
@@ -278,15 +285,11 @@ class RedisSessions
 				if err
 					cb(err)
 					return
-				# Make sure Redis answered with an all `1` array
+				# get the amount of deleted sessions
 				total = 0
-				for e in resp
-					total += e
-				total = total / 3
-				
-				if total isnt resp.length/3
-					cb("Unknow Error: " + JSON.stringify(resp), null)
-					return
+				for e in resp by 4
+					total = total + e
+
 				cb(null, {kill: total})
 				return
 			return
@@ -354,7 +357,7 @@ class RedisSessions
 					cb(err)
 					return
 				# Set `w` to the actual counter value
-				resp.w = reply[2]
+				resp.w = reply[3]
 				cb(null, resp)
 				return
 			return
@@ -417,6 +420,7 @@ class RedisSessions
 		now = @_now()
 		[
 			["zadd", "#{@redisns}#{app}:_sessions", now, "#{token}:#{id}"]
+			["zadd", "#{@redisns}#{app}:_users", now, id]
 			["zadd", "#{@redisns}SESSIONS", now + ttl, "#{app}:#{token}:#{id}"]	
 		]
 

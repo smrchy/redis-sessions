@@ -154,6 +154,31 @@
           done();
         });
       });
+      it('Create another session for user1: should return a token', function(done) {
+        rs.create({
+          app: app1,
+          id: "user1",
+          ip: "127.0.0.2",
+          ttl: 30
+        }, function(err, resp) {
+          should.not.exist(err);
+          should.exist(resp);
+          resp.should.have.keys('token');
+          done();
+        });
+      });
+      it('Activity should STILL show 1 user', function(done) {
+        rs.activity({
+          app: app1,
+          dt: 60
+        }, function(err, resp) {
+          should.not.exist(err);
+          should.exist(resp);
+          resp.should.have.keys('activity');
+          resp.activity.should.equal(1);
+          done();
+        });
+      });
       it('Create another session with valid data: should return a token', function(done) {
         rs.create({
           app: app1,

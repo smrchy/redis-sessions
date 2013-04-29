@@ -132,6 +132,25 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
+
+		it 'Create another session for user1: should return a token', (done) ->
+			rs.create {app: app1, id:"user1", ip: "127.0.0.2", ttl: 30}, (err, resp) ->
+				should.not.exist(err)
+				should.exist(resp)
+				resp.should.have.keys('token')
+				done()
+				return
+			return
+
+		it 'Activity should STILL show 1 user', (done) ->
+			rs.activity {app: app1, dt: 60}, (err, resp) ->
+				should.not.exist(err)
+				should.exist(resp)
+				resp.should.have.keys('activity')
+				resp.activity.should.equal(1)
+				done()
+				return
+			return
 		
 		it 'Create another session with valid data: should return a token', (done) ->
 			rs.create {app: app1, id:"user2", ip: "127.0.0.1", ttl: 10}, (err, resp) ->
