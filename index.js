@@ -168,7 +168,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
         return;
       }
       appkey = "" + this.redisns + options.app + ":_sessions";
-      return this.redis.zrange(appkey, 0, -1, function(err, resp) {
+      this.redis.zrange(appkey, 0, -1, function(err, resp) {
         var e, globalkeys, mc, tokenkeys, _i, _len;
 
         if (err) {
@@ -298,6 +298,11 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           resp = _.omit(resp, "d");
         }
         _this.redis.multi(mc).exec(function(err, reply) {
+          if (err) {
+            cb(err);
+            return;
+          }
+          resp.w = reply[2];
           cb(null, resp);
         });
       });

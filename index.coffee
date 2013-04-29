@@ -237,6 +237,7 @@ class RedisSessions
 				cb(null, {kill: resp[0]})
 				return
 			return
+		return
 
 
 	# ## Kill all Sessions of Id
@@ -347,7 +348,13 @@ class RedisSessions
 			else
 				mc.push(["hdel", thekey, "d"])
 				resp = _.omit(resp, "d")
+
 			@redis.multi(mc).exec (err,reply) ->
+				if err
+					cb(err)
+					return
+				# Set `w` to the actual counter value
+				resp.w = reply[2]
 				cb(null, resp)
 				return
 			return

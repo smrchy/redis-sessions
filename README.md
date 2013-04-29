@@ -2,9 +2,9 @@
 
 [![Build Status](https://secure.travis-ci.org/smrchy/redis-sessions.png?branch=master)](http://travis-ci.org/smrchy/redis-sessions)
 
-There is a need to maintain a **universal session across different application server platforms**.
-
 This is a NodeJS module to keep sessions in a Redis datastore and add some useful methods.
+
+The main purpose of this module is to generalize sessions across application server platforms. We use nginx reverse proxy to route parts of a website to a NodeJS server and other parts could be Python, .net, PHP, Coldfusion or Java servers. You can then use [rest-sessions](https://github.com/smrchy/rest-sessions) to access the same sessions in your other app server via a REST interface.
 
 ## Installation
 
@@ -35,6 +35,10 @@ With Redis being run on the same machine the test script (run via `npm test`) on
 * Creates 1000 sessions in around 200ms.
 * Gets those 1000 sessions and validates them in around 240ms.
 * Removes those 1000 sessions in 8ms.
+
+## Useage via REST
+
+See [rest-sessions](https://github.com/smrchy/rest-sessions).
 
 ## Usage in NodeJS
 
