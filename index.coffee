@@ -1,3 +1,19 @@
+###
+Redis Sessions
+
+The MIT License (MIT)
+
+Copyright © 2013 Patrick Liess, http://www.tcs.de
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+###
+
+
+
 _ = require "underscore"
 RedisInst = require "redis"
 
@@ -29,7 +45,7 @@ class RedisSessions
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	# * `dt` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
 
-	activity: (options, cb) ->
+	activity: (options, cb) =>
 		if @_validate(options, ["app","dt"],cb) is false
 			return
 		@redis.zcount "#{@redisns}#{options.app}:_sessions", @_now() - options.dt, "+inf", (err, resp) ->
@@ -114,7 +130,7 @@ class RedisSessions
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	# * `token` must be [a-zA-Z0-9] and 64 chars long
 
-	get: (options, cb) ->
+	get: (options, cb) =>
 		options = @_validate(options, ["app","token"], cb)
 		if options is false
 			return
@@ -159,7 +175,7 @@ class RedisSessions
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	# * `token` must be [a-zA-Z0-9] and 64 chars long
 	#
-	kill: (options, cb) ->
+	kill: (options, cb) =>
 		options._noupdate = true
 		@get options, (err, resp) =>
 			if err
@@ -194,7 +210,7 @@ class RedisSessions
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	#
 
-	killall: (options, cb) ->
+	killall: (options, cb) =>
 		options = @_validate(options, ["app"], cb)
 		if options is false
 			return
@@ -223,19 +239,17 @@ class RedisSessions
 			return
 
 
-	# ## Sessions of ID (soid)
+	# ## Kill all Sessions of Id
 	#
-	# Returns all sessions of a single id
+	# Kill all sessions of a single id within an app
 	#
-	# **Parameters:**
-	#
-	# An object with the following keys:
+	# Parameters:
 	#
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	# * `id` must be [a-zA-Z0-9_-] and 1-64 chars long
 	#
 
-	soid: (options, cb) ->
+	killsoid: (options, cb) =>
 		options = @_validate(options, ["app","id"], cb)
 		if options is false
 			return
@@ -245,28 +259,34 @@ class RedisSessions
 				cb(err)
 				return
 			if not resp.length
-				cb(null, {sessions: []})
+				cb(null, {kill: 0})
 				return
-			toget = []
+			mc = []
 			# Grab all sessions we need to get
-			for e in resp
-				if e.split(':')[1] is options.id
-					toget.push(e.split(':')[0])
+			for e in resp when e.split(':')[1] is options.id
+				token = e.split(':')[0]
+				# Add to the multi commands array
+				mc.push(["zrem", "#{@redisns}#{options.app}:_sessions", "#{token}:#{options.id}"])
+				mc.push(["zrem", "#{@redisns}SESSIONS", "#{options.app}:#{token}:#{options.id}"])
+				mc.push(["del", "#{@redisns}#{options.app}:#{token}"])
 			# Bail out if no sessions qualify
-			if not toget.length
-				cb(null, {sessions: []})
+			if not mc.length
+				cb(null, {kill: 0})
 
-			# Now get all qualified sessions from Redis
-			mc = for e in toget
-				["hmget", "#{@redisns}#{options.app}:#{e}", "id", "r", "w", "ttl", "d", "la", "ip"]
 			@redis.multi(mc).exec (err, resp) =>
 				if err
 					cb(err)
 					return
-				o = for e in resp
-					@_prepareSession(e)
-
-				cb(null, {sessions: o})
+				# Make sure Redis answered with an all `1` array
+				total = 0
+				for e in resp
+					total += e
+				total = total / 3
+				
+				if total isnt resp.length/3
+					cb("Unknow Error: " + JSON.stringify(resp), null)
+					return
+				cb(null, {kill: total})
 				return
 			return
 		return
@@ -290,7 +310,7 @@ class RedisSessions
 	# * `d` must be an object with keys whose values only consist of strings, numbers, boolean and null.
 	#
 
-	set: (options, cb) ->
+	set: (options, cb) =>
 		options = @_validate(options, ["app","token","d"], cb)
 		if options is false
 			return
@@ -334,6 +354,56 @@ class RedisSessions
 		return
 
 
+	# ## Sessions of ID (soid)
+	#
+	# Returns all sessions of a single id
+	#
+	# **Parameters:**
+	#
+	# An object with the following keys:
+	#
+	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
+	# * `id` must be [a-zA-Z0-9_-] and 1-64 chars long
+	#
+
+	soid: (options, cb) =>
+		options = @_validate(options, ["app","id"], cb)
+		if options is false
+			return
+
+		@redis.zrevrange "#{@redisns}#{options.app}:_sessions", 0, -1, (err, resp) =>
+			if err
+				cb(err)
+				return
+			if not resp.length
+				cb(null, {sessions: []})
+				return
+			toget = []
+			# Grab all sessions we need to get
+			for e in resp
+				if e.split(':')[1] is options.id
+					toget.push(e.split(':')[0])
+			# Bail out if no sessions qualify
+			if not toget.length
+				cb(null, {sessions: []})
+				return
+			# Now get all qualified sessions from Redis
+			mc = for e in toget
+				["hmget", "#{@redisns}#{options.app}:#{e}", "id", "r", "w", "ttl", "d", "la", "ip"]
+			@redis.multi(mc).exec (err, resp) =>
+				if err
+					cb(err)
+					return
+				o = for e in resp
+					@_prepareSession(e)
+
+				cb(null, {sessions: o})
+				return
+			return
+		return
+
+
+
 	# Helpers
 
 	_createMultiStatement: (app, token, id, ttl) ->
@@ -352,8 +422,8 @@ class RedisSessions
 			t += possible.charAt(Math.floor(Math.random() * possible.length))
 
 		# add the current time in ms to the very end seperated by a Z
-		t += 'Z' + new Date().getTime().toString(36)
-		t
+		t + 'Z' + new Date().getTime().toString(36)
+		
 
 
 	_now: ->

@@ -1,7 +1,7 @@
 {
     "name": "redis-sessions",
     "description": "A universal session store for Redis",
-    "version": "0.1.9",
+    "version": "0.1.10",
     "author": "P. Liess <smrchy+npm@gmail.com>",
     "engines": {
 		"node": "> 0.8.10"

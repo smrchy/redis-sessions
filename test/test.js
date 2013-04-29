@@ -11,7 +11,7 @@
   RedisSessions = require("../index");
 
   describe('Redis-Sessions Test', function() {
-    var app1, app2, rs, token1, token2, token3;
+    var app1, app2, bulksessions, rs, token1, token2, token3;
 
     rs = null;
     app1 = "test";
@@ -19,6 +19,7 @@
     token1 = null;
     token2 = null;
     token3 = null;
+    bulksessions = [];
     before(function(done) {
       done();
     });
@@ -222,6 +223,7 @@
           for (_j = 0, _len = resp.length; _j < _len; _j++) {
             e = resp[_j];
             e.should.have.keys('token');
+            bulksessions.push(e.token);
             e.token.length.should.equal(64);
           }
           done();
@@ -236,6 +238,29 @@
           should.exist(resp);
           resp.should.have.keys('activity');
           resp.activity.should.equal(1001);
+          done();
+        });
+      });
+      it('Get 1000 sessions for app2: succeed', function(done) {
+        var e, i, pq, _i, _len;
+
+        pq = [];
+        for (i = _i = 0, _len = bulksessions.length; _i < _len; i = ++_i) {
+          e = bulksessions[i];
+          pq.push({
+            app: app2,
+            token: e
+          });
+        }
+        async.map(pq, rs.get, function(err, resp) {
+          var _j, _len1;
+
+          resp.length.should.equal(1000);
+          for (i = _j = 0, _len1 = resp.length; _j < _len1; i = ++_j) {
+            e = resp[i];
+            e.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
+            e.id.should.equal("bulkuser_" + i);
+          }
           done();
         });
       });
@@ -262,6 +287,30 @@
           resp.should.have.keys('sessions');
           resp.sessions.length.should.equal(2);
           resp.sessions[0].id.should.equal("bulkuser_999");
+          done();
+        });
+      });
+      it('Remove those 2 sessions for bulkuser_999', function(done) {
+        rs.killsoid({
+          app: app2,
+          id: "bulkuser_999"
+        }, function(err, resp) {
+          should.not.exist(err);
+          should.exist(resp);
+          resp.should.have.keys('kill');
+          resp.kill.should.equal(2);
+          done();
+        });
+      });
+      it('Check if we have still have sessions for bulkuser_999: should return 0', function(done) {
+        rs.soid({
+          app: app2,
+          id: "bulkuser_999"
+        }, function(err, resp) {
+          should.not.exist(err);
+          should.exist(resp);
+          resp.should.have.keys('sessions');
+          resp.sessions.length.should.equal(0);
           done();
         });
       });

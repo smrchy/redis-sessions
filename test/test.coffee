@@ -11,6 +11,7 @@ describe 'Redis-Sessions Test', ->
 	token1 = null
 	token2 = null
 	token3 = null
+	bulksessions = []
 
 
 	before (done) ->
@@ -179,6 +180,7 @@ describe 'Redis-Sessions Test', ->
 			async.map pq, rs.create, (err, resp) ->
 				for e in resp
 					e.should.have.keys('token')
+					bulksessions.push(e.token)
 					e.token.length.should.equal(64)
 				done()
 				return
@@ -190,6 +192,19 @@ describe 'Redis-Sessions Test', ->
 				should.exist(resp)
 				resp.should.have.keys('activity')
 				resp.activity.should.equal(1001)
+				done()
+				return
+			return
+
+		it 'Get 1000 sessions for app2: succeed', (done) ->
+			pq = []
+			for e,i in bulksessions
+				pq.push({app:app2, token: e})
+			async.map pq, rs.get, (err, resp) ->
+				resp.length.should.equal(1000)
+				for e,i in resp
+					e.should.have.keys('id','r','w','ttl','idle','ip')
+					e.id.should.equal("bulkuser_" + i)
 				done()
 				return
 			return
@@ -214,7 +229,25 @@ describe 'Redis-Sessions Test', ->
 				return
 			return
 
+		it 'Remove those 2 sessions for bulkuser_999', (done) ->
+			rs.killsoid {app: app2, id: "bulkuser_999"}, (err, resp) ->
+				should.not.exist(err)
+				should.exist(resp)
+				resp.should.have.keys('kill')
+				resp.kill.should.equal(2)
+				done()
+				return
+			return
 
+		it 'Check if we have still have sessions for bulkuser_999: should return 0', (done) ->
+			rs.soid {app: app2, id: "bulkuser_999"}, (err, resp) ->
+				should.not.exist(err)
+				should.exist(resp)
+				resp.should.have.keys('sessions')
+				resp.sessions.length.should.equal(0)
+				done()
+				return
+			return
 
 		return
 

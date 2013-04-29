@@ -10,21 +10,31 @@ This is a NodeJS module to keep sessions in a Redis datastore and add some usefu
 
 `npm install redis-sessions`
 
+Make sure Redis runs locally on localhost and run the test: `npm test`
+
 ## Basics
 
 * Every session belongs to an app (e.g. `webapp`, `app_cust123`).
-* A session is created by supplying the app and an id (usually the unique id of the user). A token will be returned.
-* A session is queried with the app and token.
-* Additional data (key/value) can be stored in the session.
-* A session can be killed with the app and token.
-* All sessions of an app can be killed.
+* `create`: A session is created by supplying the app and an id (usually the unique id of the user). A token will be returned.
+* `get`: A session is queried with the app and token.
+* `set`: Additional data (key/value) can be stored in the session.
+* `kill`: A session can be killed with the app and token.
+* `killall`: All sessions of an app can be killed.
 
 ## Additional methods
 
-* TODO: Get an array of all sessions of an app, complete with `idle`, `ip` which were active within the last *n* seconds.
-* Get the amount of active sessions of an app within the last *n* seconds.
-* Get all sessions of a single id.
-* TODO: Kill all sessions that belong to a single id. E.g. log out user123 on all devices.
+* `activity`: Get the amount of active sessions of an app within the last *n* seconds.
+* `soid`: Get all sessions of a single id.
+* `killsoid`: Kill all sessions that belong to a single id. E.g. log out user123 on all devices.
+* TODO: Get an array of all sessions of an app which were active within the last *n* seconds.
+
+## Performance
+
+With Redis being run on the same machine the test script (run via `npm test`) on a 2009 iMac:
+
+* Creates 1000 sessions in around 200ms.
+* Gets those 1000 sessions and validates them in around 240ms.
+* Removes those 1000 sessions in 8ms.
 
 ## Usage in NodeJS
 
@@ -184,7 +194,7 @@ rs.activity({
 ```
 ### Sessions of Id
 
-Get all sessions within an app that belong to a single id. This would be all sessions from a single user in case he is logged in on different browsers / devices.
+Get all sessions within an app that belong to a single id. This would be all sessions of a single user in case he is logged in on different browsers / devices.
 
 ```javascript
 
@@ -214,6 +224,22 @@ rs.soid({
   });
 ```
 
+### Kill all sessions of an id
+
+Kill all sessions of an id within an app:
+
+```javascript
+
+rs.killsoid({app: app, id: 'bulkuser_999'},
+  function(err, resp) {
+    /*
+    resp contains the result:
+
+    {kill: 2} // The amount of sessions that were killed
+    */  
+  });
+```
+
 ### Killall
 
 Kill all sessions of an app:
@@ -229,3 +255,13 @@ rs.killall({app: app},
     */  
   });
 ```
+
+## The MIT License (MIT)
+
+Copyright © 2013 Patrick Liess, http://www.tcs.de
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
