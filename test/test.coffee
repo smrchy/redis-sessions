@@ -267,7 +267,6 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
-
 		return
 
 
@@ -316,12 +315,12 @@ describe 'Redis-Sessions Test', ->
 				return
 			return
 
-		it 'Activity for app1 should show 1 user', (done) ->
+		it 'Activity for app1 should show 2 users still', (done) ->
 			rs.activity {app: app1, dt: 60}, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('activity')
-				resp.activity.should.equal(1)
+				resp.activity.should.equal(2)
 				done()
 				return
 			return

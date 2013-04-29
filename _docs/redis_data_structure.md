@@ -24,6 +24,14 @@ A sorted set of all sessions of a single app
 **MEMBER** The `{sessionToken}:{id}`
 
 
+## rs:{app}:us:{id} *SET*
+
+A set that contains all session tokens a unique user id has.  
+Members will be added on *create* operations and removed on *kill* operations.
+
+**MEMBER** The `{sessionToken}`
+
+
 ## rs:{app}:_users ZSET
 
 A sorted set of all unique users ids of a single app

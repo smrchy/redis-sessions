@@ -66,13 +66,14 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       }
       token = this._createToken();
       mc = this._createMultiStatement(options.app, token, options.id, options.ttl);
+      mc.push(["sadd", "" + this.redisns + options.app + ":us:" + options.id, token]);
       mc.push(["hmset", "" + this.redisns + options.app + ":" + token, "id", options.id, "r", 1, "w", 1, "ip", options.ip, "la", this._now(), "ttl", parseInt(options.ttl)]);
       this.redis.multi(mc).exec(function(err, resp) {
         if (err) {
           cb(err);
           return;
         }
-        if (resp[3] !== "OK") {
+        if (resp[4] !== "OK") {
           cb("Unknow error");
           return;
         }
@@ -128,7 +129,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
       options._noupdate = true;
       this.get(options, function(err, resp) {
-        var mc;
+        var mc, userid;
 
         if (err) {
           cb(err);
@@ -140,19 +141,23 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           });
           return;
         }
-        mc = [["zrem", "" + _this.redisns + options.app + ":_sessions", "" + options.token + ":" + resp.id], ["zrem", "" + _this.redisns + options.app + ":_users", resp.id], ["zrem", "" + _this.redisns + "SESSIONS", "" + options.app + ":" + options.token + ":" + resp.id], ["del", "" + _this.redisns + options.app + ":" + options.token]];
+        userid = resp.id;
+        mc = [["zrem", "" + _this.redisns + options.app + ":_sessions", "" + options.token + ":" + userid], ["srem", "" + _this.redisns + options.app + ":us:" + userid, options.token], ["zrem", "" + _this.redisns + "SESSIONS", "" + options.app + ":" + options.token + ":" + userid], ["del", "" + _this.redisns + options.app + ":" + options.token], ["exists", "" + _this.redisns + options.app + ":us:" + userid]];
         _this.redis.multi(mc).exec(function(err, resp) {
           if (err) {
             cb(err);
             return;
           }
-          if (resp[0] === 1 && resp[1] === 1 && resp[2] === 1) {
-            cb(null, {
-              kill: 1
+          console.log(typeof resp[4], resp[4]);
+          if (resp[4] === 0) {
+            _this.redis.zrem("" + _this.redisns + options.app + ":_users", userid, function() {
+              return cb(null, {
+                kill: resp[3]
+              });
             });
           } else {
             cb(null, {
-              kill: 0
+              kill: resp[3]
             });
           }
         });
@@ -170,7 +175,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       appsessionkey = "" + this.redisns + options.app + ":_sessions";
       appuserkey = "" + this.redisns + options.app + ":_users";
       this.redis.zrange(appsessionkey, 0, -1, function(err, resp) {
-        var e, globalkeys, mc, thekey, tokenkeys, userkeys, _i, _len;
+        var e, globalkeys, mc, thekey, tokenkeys, userkeys, ussets, _i, _len;
 
         if (err) {
           cb(err);
@@ -190,7 +195,18 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           tokenkeys.push("" + _this.redisns + options.app + ":" + thekey[0]);
           userkeys.push(thekey[1]);
         }
-        mc = [["zrem", appsessionkey].concat(resp), ["zrem", appuserkey].concat(_.uniq(userkeys)), ["zrem", "" + _this.redisns + "SESSIONS"].concat(globalkeys), ["del"].concat(tokenkeys)];
+        userkeys = _.uniq(userkeys);
+        ussets = (function() {
+          var _j, _len1, _results;
+
+          _results = [];
+          for (_j = 0, _len1 = userkeys.length; _j < _len1; _j++) {
+            e = userkeys[_j];
+            _results.push("" + this.redisns + options.app + ":us:" + e);
+          }
+          return _results;
+        }).call(_this);
+        mc = [["zrem", appsessionkey].concat(resp), ["zrem", appuserkey].concat(userkeys), ["zrem", "" + _this.redisns + "SESSIONS"].concat(globalkeys), ["del"].concat(ussets), ["del"].concat(tokenkeys)];
         _this.redis.multi(mc).exec(function(err, resp) {
           cb(null, {
             kill: resp[0]
@@ -227,30 +243,41 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           }
           token = e.split(':')[0];
           mc.push(["zrem", "" + _this.redisns + options.app + ":_sessions", "" + token + ":" + options.id]);
-          mc.push(["zrem", "" + _this.redisns + options.app + ":_users", options.id]);
+          mc.push(["srem", "" + _this.redisns + options.app + ":us:" + options.id, options.token]);
           mc.push(["zrem", "" + _this.redisns + "SESSIONS", "" + options.app + ":" + token + ":" + options.id]);
           mc.push(["del", "" + _this.redisns + options.app + ":" + token]);
         }
+        mc.push(["exists", "" + _this.redisns + options.app + ":us:" + options.id]);
         if (!mc.length) {
           cb(null, {
             kill: 0
           });
         }
         _this.redis.multi(mc).exec(function(err, resp) {
-          var total, _j, _len1;
+          var total, _j, _len1, _ref;
 
           if (err) {
             cb(err);
             return;
           }
           total = 0;
-          for (_j = 0, _len1 = resp.length; _j < _len1; _j += 4) {
-            e = resp[_j];
+          _ref = resp.slice(3);
+          for (_j = 0, _len1 = _ref.length; _j < _len1; _j += 4) {
+            e = _ref[_j];
+            console.log(e);
             total = total + e;
           }
-          cb(null, {
-            kill: total
-          });
+          if (_.last(resp) === 0) {
+            _this.redis.zrem("" + _this.redisns + options.app + ":_users", options.id, function() {
+              return cb(null, {
+                kill: total
+              });
+            });
+          } else {
+            cb(null, {
+              kill: total
+            });
+          }
         });
       });
     };

@@ -89,6 +89,7 @@ class RedisSessions
 		token = @_createToken()
 		# Prepopulate the multi statement
 		mc = @_createMultiStatement(options.app, token, options.id, options.ttl)
+		mc.push(["sadd", "#{@redisns}#{options.app}:us:#{options.id}", token])
 		# Create the default session hash
 		mc.push([
 			"hmset"
@@ -111,7 +112,7 @@ class RedisSessions
 			if err 
 				cb(err)
 				return
-			if resp[3] isnt "OK"
+			if resp[4] isnt "OK"
 				cb("Unknow error")
 				return
 			cb(null, {token: token})
@@ -184,20 +185,26 @@ class RedisSessions
 			if not resp.id
 				cb(null, {kill: 0})
 				return
+			userid = resp.id
 			mc = [
-				["zrem", "#{@redisns}#{options.app}:_sessions", "#{options.token}:#{resp.id}"]
-				["zrem", "#{@redisns}#{options.app}:_users", resp.id]
-				["zrem", "#{@redisns}SESSIONS", "#{options.app}:#{options.token}:#{resp.id}"]
+				["zrem", "#{@redisns}#{options.app}:_sessions", "#{options.token}:#{userid}"]
+				["srem", "#{@redisns}#{options.app}:us:#{userid}", options.token]
+				["zrem", "#{@redisns}SESSIONS", "#{options.app}:#{options.token}:#{userid}"]
 				["del", "#{@redisns}#{options.app}:#{options.token}"]
+				["exists", "#{@redisns}#{options.app}:us:#{userid}"]
 			]
-			@redis.multi(mc).exec (err,resp) ->
+			@redis.multi(mc).exec (err,resp) =>
 				if err
 					cb(err)
 					return
-				if resp[0] is 1 and resp[1] is 1 and resp[2] is 1
-					cb(null, {kill: 1})
+				# NOW. If the last reply of the multi statement is 0 then this was the last session.  
+				# We need to remove the ZSET for this user also:
+				console.log typeof resp[4], resp[4]
+				if resp[4] is 0
+					@redis.zrem "#{@redisns}#{options.app}:_users", userid, ->
+						cb(null, {kill: resp[3]})
 				else
-					cb(null, {kill: 0})
+					cb(null, {kill: resp[3]})
 				return
 			return
 		return
@@ -233,10 +240,14 @@ class RedisSessions
 				globalkeys.push("#{options.app}:#{e}")
 				tokenkeys.push("#{@redisns}#{options.app}:#{thekey[0]}")
 				userkeys.push(thekey[1])
+			userkeys = _.uniq(userkeys)
+			ussets = for e in userkeys
+				"#{@redisns}#{options.app}:us:#{e}"
 			mc = [
 				["zrem", appsessionkey].concat(resp)
-				["zrem", appuserkey].concat(_.uniq(userkeys))
+				["zrem", appuserkey].concat(userkeys)
 				["zrem", "#{@redisns}SESSIONS"].concat(globalkeys)
+				["del"].concat(ussets)
 				["del"].concat(tokenkeys)
 			]
 			@redis.multi(mc).exec (err, resp) ->
@@ -274,9 +285,10 @@ class RedisSessions
 				token = e.split(':')[0]
 				# Add to the multi commands array
 				mc.push(["zrem", "#{@redisns}#{options.app}:_sessions", "#{token}:#{options.id}"])
-				mc.push(["zrem", "#{@redisns}#{options.app}:_users", options.id])
+				mc.push(["srem", "#{@redisns}#{options.app}:us:#{options.id}", options.token])
 				mc.push(["zrem", "#{@redisns}SESSIONS", "#{options.app}:#{token}:#{options.id}"])
 				mc.push(["del", "#{@redisns}#{options.app}:#{token}"])
+			mc.push(["exists", "#{@redisns}#{options.app}:us:#{options.id}"])
 			# Bail out if no sessions qualify
 			if not mc.length
 				cb(null, {kill: 0})
@@ -287,10 +299,17 @@ class RedisSessions
 					return
 				# get the amount of deleted sessions
 				total = 0
-				for e in resp by 4
+				for e in resp[3...] by 4
+					console.log e
 					total = total + e
 
-				cb(null, {kill: total})
+				# NOW. If the last reply of the multi statement is 0 then this was the last session.  
+				# We need to remove the ZSET for this user also:
+				if _.last(resp) is 0
+					@redis.zrem "#{@redisns}#{options.app}:_users", options.id, ->
+						cb(null, {kill: total})
+				else
+					cb(null, {kill: total})
 				return
 			return
 		return
