@@ -233,7 +233,7 @@ class RedisSessions
 				cb(err)
 				return
 			if not resp.length
-				cb(null, 0)
+				cb(null, {kill: 0})
 				return
 			globalkeys = []
 			tokenkeys = []
