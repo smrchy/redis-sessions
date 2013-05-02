@@ -277,7 +277,6 @@ class RedisSessions
 		options = @_validate(options, ["app","id"], cb)
 		if options is false
 			return
-
 		@redis.smembers "#{@redisns}#{options.app}:us:#{options.id}", (err, resp) =>
 			if err
 				cb(err)
