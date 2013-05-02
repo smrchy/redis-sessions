@@ -308,6 +308,7 @@ class RedisSessions
 				if _.last(resp) is 0
 					@redis.zrem "#{@redisns}#{options.app}:_users", options.id, ->
 						cb(null, {kill: total})
+						return
 				else
 					cb(null, {kill: total})
 				return

@@ -268,7 +268,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           }
           if (_.last(resp) === 0) {
             _this.redis.zrem("" + _this.redisns + options.app + ":_users", options.id, function() {
-              return cb(null, {
+              cb(null, {
                 kill: total
               });
             });
