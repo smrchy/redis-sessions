@@ -27,7 +27,7 @@ Make sure Redis runs locally on localhost and run the test: `npm test`
 * `soid`: Get all sessions of a single id.
 * `killsoid`: Kill all sessions that belong to a single id. E.g. log out user123 on all devices.
 * TODO: Get an array of all sessions of an app which were active within the last *n* seconds.
-* TODO: Automatic cleanup of old sessions.
+* Automatic cleanup of old sessions.
 
 ## Performance
 

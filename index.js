@@ -31,15 +31,18 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
         redishost = "127.0.0.1";
       }
       this.redisns = redisns != null ? redisns : "rs:";
+      this.wipe = __bind(this.wipe, this);
       this.soid = __bind(this.soid, this);
       this.set = __bind(this.set, this);
       this.killsoid = __bind(this.killsoid, this);
       this.killall = __bind(this.killall, this);
+      this._kill = __bind(this._kill, this);
       this.kill = __bind(this.kill, this);
       this.get = __bind(this.get, this);
       this.create = __bind(this.create, this);
       this.activity = __bind(this.activity, this);
       this.redis = RedisInst.createClient(redisport, redishost);
+      setInterval(this.wipe, 60 * 1000);
     }
 
     RedisSessions.prototype.activity = function(options, cb) {
@@ -127,10 +130,12 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
     RedisSessions.prototype.kill = function(options, cb) {
       var _this = this;
 
+      options = this._validate(options, ["app", "token"], cb);
+      if (options === false) {
+        return;
+      }
       options._noupdate = true;
       this.get(options, function(err, resp) {
-        var mc, userid;
-
         if (err) {
           cb(err);
           return;
@@ -141,29 +146,36 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           });
           return;
         }
-        userid = resp.id;
-        mc = [["zrem", "" + _this.redisns + options.app + ":_sessions", "" + options.token + ":" + userid], ["srem", "" + _this.redisns + options.app + ":us:" + userid, options.token], ["zrem", "" + _this.redisns + "SESSIONS", "" + options.app + ":" + options.token + ":" + userid], ["del", "" + _this.redisns + options.app + ":" + options.token], ["exists", "" + _this.redisns + options.app + ":us:" + userid]];
-        _this.redis.multi(mc).exec(function(err, resp) {
-          if (err) {
-            cb(err);
-            return;
-          }
-          if (resp[4] === 0) {
-            _this.redis.zrem("" + _this.redisns + options.app + ":_users", userid, function() {
-              if (err) {
-                cb(err);
-                return;
-              }
-              cb(null, {
-                kill: resp[3]
-              });
-            });
-          } else {
+        options.id = resp.id;
+        _this._kill(options, cb);
+      });
+    };
+
+    RedisSessions.prototype._kill = function(options, cb) {
+      var mc,
+        _this = this;
+
+      mc = [["zrem", "" + this.redisns + options.app + ":_sessions", "" + options.token + ":" + options.id], ["srem", "" + this.redisns + options.app + ":us:" + options.id, options.token], ["zrem", "" + this.redisns + "SESSIONS", "" + options.app + ":" + options.token + ":" + options.id], ["del", "" + this.redisns + options.app + ":" + options.token], ["exists", "" + this.redisns + options.app + ":us:" + options.id]];
+      this.redis.multi(mc).exec(function(err, resp) {
+        if (err) {
+          cb(err);
+          return;
+        }
+        if (resp[4] === 0) {
+          _this.redis.zrem("" + _this.redisns + options.app + ":_users", options.id, function() {
+            if (err) {
+              cb(err);
+              return;
+            }
             cb(null, {
               kill: resp[3]
             });
-          }
-        });
+          });
+        } else {
+          cb(null, {
+            kill: resp[3]
+          });
+        }
       });
     };
 
@@ -385,6 +397,30 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
             sessions: o
           });
         });
+      });
+    };
+
+    RedisSessions.prototype.wipe = function() {
+      var _this = this;
+
+      this.redis.zrangebyscore("" + this.redisns + "SESSIONS", "-inf", this._now(), function(err, resp) {
+        if (err) {
+          return;
+        }
+        if (resp.length) {
+          console.log("WIPING:", resp.length, " sessions");
+          _.each(resp, function(e) {
+            var options;
+
+            e = e.split(':');
+            options = {
+              app: e[0],
+              token: e[1],
+              id: e[2]
+            };
+            _this._kill(options, function() {});
+          });
+        }
       });
     };
 

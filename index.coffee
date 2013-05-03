@@ -35,6 +35,8 @@ class RedisSessions
 	constructor: (redisport=6379, redishost="127.0.0.1", @redisns="rs:") ->
 		@redis = RedisInst.createClient(redisport, redishost)
 
+		setInterval(@wipe, 60*1000)
+
 
 	# ## Activity
 	#
@@ -177,6 +179,9 @@ class RedisSessions
 	# * `token` must be [a-zA-Z0-9] and 64 chars long
 	#
 	kill: (options, cb) =>
+		options = @_validate(options, ["app","token"], cb)
+		if options is false
+			return
 		options._noupdate = true
 		@get options, (err, resp) =>
 			if err
@@ -185,30 +190,39 @@ class RedisSessions
 			if not resp.id
 				cb(null, {kill: 0})
 				return
-			userid = resp.id
-			mc = [
-				["zrem", "#{@redisns}#{options.app}:_sessions", "#{options.token}:#{userid}"]
-				["srem", "#{@redisns}#{options.app}:us:#{userid}", options.token]
-				["zrem", "#{@redisns}SESSIONS", "#{options.app}:#{options.token}:#{userid}"]
-				["del", "#{@redisns}#{options.app}:#{options.token}"]
-				["exists", "#{@redisns}#{options.app}:us:#{userid}"]
-			]
-			@redis.multi(mc).exec (err,resp) =>
-				if err
-					cb(err)
-					return
-				# NOW. If the last reply of the multi statement is 0 then this was the last session.  
-				# We need to remove the ZSET for this user also:
-				if resp[4] is 0
-					@redis.zrem "#{@redisns}#{options.app}:_users", userid, ->
-						if err
-							cb(err)
-							return
-						cb(null, {kill: resp[3]})
-						return
-				else
-					cb(null, {kill: resp[3]})
+			options.id = resp.id
+			@_kill(options, cb)
+			return
+		return
+
+	# Helper to _kill a single session
+	#
+	# Used by @kill and @wipe
+	#
+	# Needs options.app, options.token and options.id
+	_kill: (options, cb) =>
+		mc = [
+			["zrem", "#{@redisns}#{options.app}:_sessions", "#{options.token}:#{options.id}"]
+			["srem", "#{@redisns}#{options.app}:us:#{options.id}", options.token]
+			["zrem", "#{@redisns}SESSIONS", "#{options.app}:#{options.token}:#{options.id}"]
+			["del", "#{@redisns}#{options.app}:#{options.token}"]
+			["exists", "#{@redisns}#{options.app}:us:#{options.id}"]
+		]
+		@redis.multi(mc).exec (err,resp) =>
+			if err
+				cb(err)
 				return
+			# NOW. If the last reply of the multi statement is 0 then this was the last session.  
+			# We need to remove the ZSET for this user also:
+			if resp[4] is 0
+				@redis.zrem "#{@redisns}#{options.app}:_users", options.id, ->
+					if err
+						cb(err)
+						return
+					cb(null, {kill: resp[3]})
+					return
+			else
+				cb(null, {kill: resp[3]})
 			return
 		return
 
@@ -422,7 +436,26 @@ class RedisSessions
 			return
 		return
 
+	# Wipe old sessions
+	#
+	# Called by internal housekeeping
 
+	wipe: =>
+		@redis.zrangebyscore "#{@redisns}SESSIONS", "-inf", @_now(), (err, resp) =>
+			if err
+				return
+			if resp.length
+				console.log "WIPING:", resp.length, " sessions"
+				_.each resp, (e) =>
+					e = e.split(':')
+					options =
+						app: e[0]
+						token: e[1]
+						id: e[2]
+					@_kill(options, ->)
+					return
+			return
+		return
 
 	# Helpers
 
@@ -517,6 +550,7 @@ class RedisSessions
 							cb("d.#{e} has a forbidden type. Only strings, numbers, boolean and null are allowed.")
 							return false
 		return o
+
 
 
 module.exports = RedisSessions
