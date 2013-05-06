@@ -43,19 +43,28 @@ See [rest-sessions](https://github.com/smrchy/rest-sessions).
 
 ## Usage in NodeJS
 
-### Setup and creating the first session
+### Initialize redis-sessions
 
 ```javascript
 RedisSessions = require("redis-sessions");
 rs = new RedisSessions();
 
-app = "myapp";
+rsapp = "myapp";
+```
+
+### Create a session
+
+The `ttl` parameter is optional and defaults to 7200.
+
+```javascript
 
 // Set a session for `user1001`
 
 rs.create({
-  app: app,
-  id: "user1001"},
+  app: rsapp,
+  id: "user1001",
+  ip: "192.168.22.58",
+  ttl: 3600},
   function(err, resp) {
     // resp should be something like 
    // {token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"}
@@ -66,7 +75,7 @@ rs.create({
 
 ```javascript
 rs.set({
-  app: app,
+  app: rsapp,
   token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe",
   d: {
     "unread_msgs": 12,
@@ -99,7 +108,7 @@ rs.set({
 
 ```javascript
 rs.get({
-  app: app,
+  app: rsapp,
   token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"},
   function(err, resp) {
     /*
@@ -133,7 +142,7 @@ To remove keys set them to `null`, **keys that are not supplied will not be touc
 ```javascript
 
 rs.set({
-  app: app,
+  app: rsapp,
   token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe",
   d: {
       "unread_msgs": null
@@ -166,7 +175,7 @@ Kill a single session by supplying app and token:
 ```javascript
 
 rs.kill({
-  app: app,
+  app: rsapp,
   token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"},
   function(err, resp) {
     /*
@@ -187,7 +196,7 @@ Query the amount of active session within the last 10 minutes (600 seconds).
 ```javascript
 
 rs.activity({
-  app: app,
+  app: rsapp,
   dt: 600},
   function(err, resp) {
     /*
@@ -204,7 +213,7 @@ Get all sessions within an app that belong to a single id. This would be all ses
 ```javascript
 
 rs.soid({
-  app: app,
+  app: rsapp,
   id: "bulkuser_999"},
   function(err, resp) {
     /*
@@ -235,7 +244,7 @@ Kill all sessions of an id within an app:
 
 ```javascript
 
-rs.killsoid({app: app, id: 'bulkuser_999'},
+rs.killsoid({app: rsapp, id: 'bulkuser_999'},
   function(err, resp) {
     /*
     resp contains the result:
@@ -251,7 +260,7 @@ Kill all sessions of an app:
 
 ```javascript
 
-rs.killall({app: app},
+rs.killall({app: rsapp},
   function(err, resp) {
     /*
     resp contains the result:
