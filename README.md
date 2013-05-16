@@ -1,4 +1,4 @@
-# Redis Sessions
+# Redis Sessions 
 
 [![Build Status](https://secure.travis-ci.org/smrchy/redis-sessions.png?branch=master)](http://travis-ci.org/smrchy/redis-sessions)
 
