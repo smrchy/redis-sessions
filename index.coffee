@@ -32,7 +32,8 @@ RedisInst = require "redis"
 #
 class RedisSessions
 
-	constructor: (redisport=6379, redishost="127.0.0.1", @redisns="rs:") ->
+	constructor: (redisport=6379, redishost="127.0.0.1", @redisns="rs") ->
+		@redisns = @redisns + ":"
 		@redis = RedisInst.createClient(redisport, redishost)
 
 		setInterval(@wipe, 60*1000)
