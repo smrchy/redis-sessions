@@ -24,19 +24,28 @@ RedisInst = require "redis"
 # 	RedisSessions = require("redis-sessions")
 #	rs = new RedisSessions()
 #
-#	Paramenters for RedisSessions:
+#	Parameters:
 #
-#	`redisport`, `redishost`, `redisns`
-#
-# Defaults are: `6379`, `"127.0.0.1"`, `"rs:"`
+#	`port`: *optional* Default: 6379. The Redis port.
+#	`host`, *optional* Default: "127.0.0.1". The Redis host.
+#	`namespace`: *optional* Default: "rs". The namespace prefix for all Redis keys used by this module.
+#	`wipe`: *optional* Default: 600. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
 #
 class RedisSessions
 
-	constructor: (redisport=6379, redishost="127.0.0.1", @redisns="rs") ->
+	constructor: (options={}) ->
+		@redisns = options.namespace or "rs"
 		@redisns = @redisns + ":"
-		@redis = RedisInst.createClient(redisport, redishost)
+		
+		port = options.port or 6379
+		host = options.host or "127.0.0.1"
 
-		setInterval(@wipe, 60*1000)
+		@redis = RedisInst.createClient(port, host)
+
+		wipe = options.wipe or 600
+		if wipe < 10
+			wipe = 10
+		setInterval(@_wipe, wipe*1000)
 
 
 	# ## Activity
@@ -441,7 +450,7 @@ class RedisSessions
 	#
 	# Called by internal housekeeping
 
-	wipe: =>
+	_wipe: =>
 		@redis.zrangebyscore "#{@redisns}SESSIONS", "-inf", @_now(), (err, resp) =>
 			if err
 				return

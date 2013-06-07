@@ -4,13 +4,11 @@
 
 This is a NodeJS module to keep sessions in a Redis datastore and add some useful methods.
 
-The main purpose of this module is to generalize sessions across application server platforms. We use nginx reverse proxy to route parts of a website to a NodeJS server and other parts could be Python, .net, PHP, Coldfusion or Java servers. You can then use [rest-sessions](https://github.com/smrchy/rest-sessions) to access the same sessions in your other app server via a REST interface.
+The main purpose of this module is to generalize sessions across application server platforms. We use nginx reverse proxy to route parts of a website to a NodeJS server and other parts could be Python, .net, PHP, Coldfusion or Java servers. You can then use [rest-sessions](https://github.com/smrchy/rest-sessions) to access the same sessions on all app server via a REST interface.
 
 ## Installation
 
 `npm install redis-sessions`
-
-Make sure Redis runs locally on localhost and run the test: `npm test`
 
 ## Basics
 
@@ -37,16 +35,26 @@ With Redis being run on the same machine the test script (run via `npm test`) on
 * Gets those 1000 sessions and validates them in around 155ms.
 * Removes those 1000 sessions in 18ms.
 
-## Useage via REST
+## Use via REST
 
 See [rest-sessions](https://github.com/smrchy/rest-sessions).
 
-## Usage in NodeJS
+## Use in NodeJS
 
 ### Initialize redis-sessions
 
 ```javascript
 RedisSessions = require("redis-sessions");
+//
+// Parameters for RedisSession:
+//
+// e.g. rs = new RedisSession({host:"192.168.0.20"});
+//
+// `port`: *optional* Default: 6379. The Redis port.
+// `host`, *optional* Default: "127.0.0.1". The Redis host.
+// `namespace`: *optional* Default: "rs". The namespace prefix for all Redis keys used by this module.
+// `wipe`: *optional* Default: 600. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
+//
 rs = new RedisSessions();
 
 rsapp = "myapp";

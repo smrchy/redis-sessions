@@ -23,15 +23,13 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
   RedisInst = require("redis");
 
   RedisSessions = (function() {
-    function RedisSessions(redisport, redishost, redisns) {
-      if (redisport == null) {
-        redisport = 6379;
+    function RedisSessions(options) {
+      var host, port, wipe;
+
+      if (options == null) {
+        options = {};
       }
-      if (redishost == null) {
-        redishost = "127.0.0.1";
-      }
-      this.redisns = redisns != null ? redisns : "rs";
-      this.wipe = __bind(this.wipe, this);
+      this._wipe = __bind(this._wipe, this);
       this.soid = __bind(this.soid, this);
       this.set = __bind(this.set, this);
       this.killsoid = __bind(this.killsoid, this);
@@ -41,9 +39,16 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       this.get = __bind(this.get, this);
       this.create = __bind(this.create, this);
       this.activity = __bind(this.activity, this);
+      this.redisns = options.namespace || "rs";
       this.redisns = this.redisns + ":";
-      this.redis = RedisInst.createClient(redisport, redishost);
-      setInterval(this.wipe, 60 * 1000);
+      port = options.port || 6379;
+      host = options.host || "127.0.0.1";
+      this.redis = RedisInst.createClient(port, host);
+      wipe = options.wipe || 600;
+      if (wipe < 10) {
+        wipe = 10;
+      }
+      setInterval(this._wipe, wipe * 1000);
     }
 
     RedisSessions.prototype.activity = function(options, cb) {
@@ -401,7 +406,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       });
     };
 
-    RedisSessions.prototype.wipe = function() {
+    RedisSessions.prototype._wipe = function() {
       var _this = this;
 
       this.redis.zrangebyscore("" + this.redisns + "SESSIONS", "-inf", this._now(), function(err, resp) {
