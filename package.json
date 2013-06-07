@@ -12,7 +12,7 @@
 	"dependencies": {
 		"hiredis": "*",
 		"redis": "*",
-		"underscore": "= 1.4.4"
+		"underscore": "*"
 	},
 	"devDependencies": {
 		"mocha": "*",
