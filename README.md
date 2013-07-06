@@ -24,7 +24,7 @@ The main purpose of this module is to generalize sessions across application ser
 * `activity`: Get the amount of active sessions of an app within the last *n* seconds.
 * `soid`: Get all sessions of a single id.
 * `killsoid`: Kill all sessions that belong to a single id. E.g. log out user123 on all devices.
-* TODO: Get an array of all sessions of an app which were active within the last *n* seconds.
+* `soapp`: Get an array of all sessions of an app which were active within the last *n* seconds.
 * Automatic cleanup of old sessions.
 
 ## Performance
@@ -214,6 +214,40 @@ rs.activity({
     */  
   });
 ```
+
+### Sessions of App
+
+Get all sessions of an app there were active within the last 10 minutes (600 seconds).
+
+```javascript
+
+rs.soapp({
+  app: rsapp,
+  dt: 600},
+  function(err, resp) {
+    /*
+    resp contains the sessions:
+
+    { sessions: 
+       [ { id: 'someuser123',
+           r: 1,
+           w: 1,
+           ttl: 30,
+           idle: 0,
+           ip: '127.0.0.2'
+         },
+         { id: 'anotheruser456',
+           r: 4,
+           w: 2,
+           ttl: 7200,
+      	   idle: 24,
+           ip: '127.0.0.1' }
+        ] 
+    }
+    */  
+  });
+```
+
 ### Sessions of Id
 
 Get all sessions within an app that belong to a single id. This would be all sessions of a single user in case he is logged in on different browsers / devices.

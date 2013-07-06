@@ -68,7 +68,6 @@ class RedisSessions
 			return
 		return
 
-
 	# ## Create
 	#
 	# Creates a session for an app and id. 
@@ -408,6 +407,29 @@ class RedisSessions
 		return
 
 
+	# ## Session of App
+	#
+	# Returns all sessions of a single app that were active within the last *n* seconds
+	# Note: This might return a lot of data depending on `dt`. Use with care.
+	#
+	# **Parameters:**
+	#
+	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
+	# * `dt` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
+
+	soapp: (options, cb) =>
+		if @_validate(options, ["app","dt"],cb) is false
+			return
+		@redis.zrevrangebyscore "#{@redisns}#{options.app}:_sessions", "+inf", @_now() - options.dt, (err, resp) =>
+			if err
+				cb(err)
+				return
+			resp = for e in resp
+				e.split(':')[0]
+			@_returnSessions(options, resp, cb)
+			return
+		return
+
 	# ## Sessions of ID (soid)
 	#
 	# Returns all sessions of a single id
@@ -424,46 +446,11 @@ class RedisSessions
 		options = @_validate(options, ["app","id"], cb)
 		if options is false
 			return
-
 		@redis.smembers "#{@redisns}#{options.app}:us:#{options.id}", (err, resp) =>
 			if err
 				cb(err)
 				return
-			if not resp.length
-				cb(null, {sessions: []})
-				return
-			mc = for e in resp
-				["hmget", "#{@redisns}#{options.app}:#{e}", "id", "r", "w", "ttl", "d", "la", "ip"]
-			@redis.multi(mc).exec (err, resp) =>
-				if err
-					cb(err)
-					return
-				o = for e in resp
-					@_prepareSession(e)
-
-				cb(null, {sessions: o})
-				return
-			return
-		return
-
-	# Wipe old sessions
-	#
-	# Called by internal housekeeping
-
-	_wipe: =>
-		@redis.zrangebyscore "#{@redisns}SESSIONS", "-inf", @_now(), (err, resp) =>
-			if err
-				return
-			if resp.length
-				console.log "WIPING:", resp.length, " sessions"
-				_.each resp, (e) =>
-					e = e.split(':')
-					options =
-						app: e[0]
-						token: e[1]
-						id: e[2]
-					@_kill(options, ->)
-					return
+			@_returnSessions(options, resp, cb)
 			return
 		return
 
@@ -493,6 +480,7 @@ class RedisSessions
 	_now: ->
 		parseInt((new Date()).getTime() / 1000)
 
+
 	_prepareSession: (session) ->
 		now = @_now()
 		if session[0] is null
@@ -515,6 +503,24 @@ class RedisSessions
 			o.d = JSON.parse(session[4])
 		o
 
+
+	_returnSessions: (options, sessions, cb) =>
+		if not sessions.length
+			cb(null, {sessions: []})
+			return
+		mc = for e in sessions
+			["hmget", "#{@redisns}#{options.app}:#{e}", "id", "r", "w", "ttl", "d", "la", "ip"]
+		@redis.multi(mc).exec (err, resp) =>
+			if err
+				cb(err)
+				return
+			o = for e in resp
+				@_prepareSession(e)
+			cb(null, {sessions: o})
+			return
+		return
+
+	# Validation regex used by _validate
 	_VALID:
 		app:	/^([a-zA-Z0-9_-]){3,20}$/
 		id:		/^([a-zA-Z0-9_-]){1,64}$/
@@ -561,6 +567,25 @@ class RedisSessions
 							return false
 		return o
 
+	# Wipe old sessions
+	#
+	# Called by internal housekeeping every `options.wipe` seconds
+	_wipe: =>
+		@redis.zrangebyscore "#{@redisns}SESSIONS", "-inf", @_now(), (err, resp) =>
+			if err
+				return
+			if resp.length
+				console.log "WIPING:", resp.length, " sessions"
+				_.each resp, (e) =>
+					e = e.split(':')
+					options =
+						app: e[0]
+						token: e[1]
+						id: e[2]
+					@_kill(options, ->)
+					return
+			return
+		return
 
 
 module.exports = RedisSessions

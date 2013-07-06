@@ -171,6 +171,17 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
+
+		it 'Sessions of App should return 3 users', (done) ->
+			rs.soapp {app: app1, dt: 60}, (err, resp) ->
+				should.not.exist(err)
+				should.exist(resp)
+				resp.should.have.keys('sessions')
+				resp.sessions.length.should.equal(3)
+				done()
+				return
+			return
+
 		
 		it 'Create a session for another app with valid data: should return a token', (done) ->
 			rs.create {app: app2, id:"user1", ip: "127.0.0.1", ttl: 30}, (err, resp) ->
@@ -292,6 +303,17 @@ describe 'Redis-Sessions Test', ->
 				resp.id.should.equal("user1")
 				resp.ttl.should.equal(30)
 				resp.r.should.equal(2)
+				done()
+				return
+			return
+
+
+		it 'Sessions of App should return 3 users', (done) ->
+			rs.soapp {app: app1, dt: 60}, (err, resp) ->
+				should.not.exist(err)
+				should.exist(resp)
+				resp.should.have.keys('sessions')
+				resp.sessions.length.should.equal(3)
 				done()
 				return
 			return
