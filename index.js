@@ -469,7 +469,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       app: /^([a-zA-Z0-9_-]){3,20}$/,
       id: /^([a-zA-Z0-9_-]){1,64}$/,
       ip: /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-      token: /^([a-zA-Z0-9_-]){16,64}$/
+      token: /^([a-zA-Z0-9]){64}$/
     };
 
     RedisSessions.prototype._validate = function(o, items, cb) {
