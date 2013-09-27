@@ -30,6 +30,8 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       }
       this._wipe = __bind(this._wipe, this);
       this._returnSessions = __bind(this._returnSessions, this);
+      this._initErrors = __bind(this._initErrors, this);
+      this._handleError = __bind(this._handleError, this);
       this.soid = __bind(this.soid, this);
       this.soapp = __bind(this.soapp, this);
       this.set = __bind(this.set, this);
@@ -40,6 +42,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       this.get = __bind(this.get, this);
       this.create = __bind(this.create, this);
       this.activity = __bind(this.activity, this);
+      this._initErrors();
       this.redisns = options.namespace || "rs";
       this.redisns = this.redisns + ":";
       if ((options != null ? (_ref = options.client) != null ? (_ref1 = _ref.constructor) != null ? _ref1.name : void 0 : void 0 : void 0) === "RedisClient") {
@@ -399,6 +402,31 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       return t + 'Z' + new Date().getTime().toString(36);
     };
 
+    RedisSessions.prototype._handleError = function(cb, err, data) {
+      var _err, _ref;
+      if (data == null) {
+        data = {};
+      }
+      if (_.isString(err)) {
+        _err = new Error();
+        _err.name = err;
+        _err.message = ((_ref = this._ERRORS) != null ? typeof _ref[err] === "function" ? _ref[err](data) : void 0 : void 0) || "unkown";
+      } else {
+        _err = err;
+      }
+      cb(_err);
+    };
+
+    RedisSessions.prototype._initErrors = function() {
+      var key, msg, _ref;
+      this._ERRORS = {};
+      _ref = this.ERRORS;
+      for (key in _ref) {
+        msg = _ref[key];
+        this._ERRORS[key] = _.template(msg);
+      }
+    };
+
     RedisSessions.prototype._now = function() {
       return parseInt((new Date()).getTime() / 1000);
     };
@@ -482,46 +510,62 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           case "ip":
           case "token":
             if (!o[item]) {
-              cb("No " + item + " supplied");
+              this._handleError(cb, "missingParameter", {
+                item: item
+              });
               return false;
             }
             o[item] = o[item].toString();
             if (!this._VALID[item].test(o[item])) {
-              cb("Invalid " + item + " format");
+              this._handleError(cb, "invalidFormat", {
+                item: item
+              });
               return false;
             }
             break;
           case "ttl":
             o.ttl = parseInt(o.ttl || 7200, 10);
             if (_.isNaN(o.ttl) || !_.isNumber(o.ttl) || o.ttl < 10) {
-              cb("ttl must be a positive integer >= 10");
+              this._handleError(cb, "invalidValue", {
+                msg: "ttl must be a positive integer >= 10"
+              });
               return false;
             }
             break;
           case "dt":
             o[item] = parseInt(o[item], 10);
             if (_.isNaN(o[item]) || !_.isNumber(o[item]) || o[item] < 10) {
-              cb("dt must be a positive integer >= 10");
+              this._handleError(cb, "invalidValue", {
+                msg: "ttl must be a positive integer >= 10"
+              });
               return false;
             }
             break;
           case "d":
             if (!o[item]) {
-              cb("No d supplied.");
+              this._handleError(cb, "missingParameter", {
+                item: item
+              });
               return false;
             }
             if (!_.isObject(o.d)) {
-              cb("d must be an object.");
+              this._handleError(cb, "invalidValue", {
+                msg: "d must be an object"
+              });
               return false;
             }
             keys = _.keys(o.d);
             if (!keys.length) {
-              cb("d must containt at least one key.");
+              this._handleError(cb, "invalidValue", {
+                msg: "d must containt at least one key."
+              });
               return false;
             }
             for (e in o.d) {
               if (!_.isString(o.d[e]) && !_.isNumber(o.d[e]) && !_.isBoolean(o.d[e]) && !_.isNull(o.d[e])) {
-                cb("d." + e + " has a forbidden type. Only strings, numbers, boolean and null are allowed.");
+                this._handleError(cb, "invalidValue", {
+                  msg: "d." + e + " has a forbidden type. Only strings, numbers, boolean and null are allowed."
+                });
                 return false;
               }
             }
@@ -550,6 +594,12 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           });
         }
       });
+    };
+
+    RedisSessions.prototype.ERRORS = {
+      "missingParameter": "No <%= item %> supplied",
+      "invalidFormat": "Invalid <%= item %> format",
+      "invalidValue": "<%= msg %>"
     };
 
     return RedisSessions;

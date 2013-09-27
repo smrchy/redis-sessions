@@ -33,42 +33,42 @@ describe 'Redis-Sessions Test', ->
 	describe 'GET: Part 1', ->
 		it 'Get a Session with invalid app format: no app supplied', (done) ->
 			rs.get {}, (err, resp) ->
-				err.should.equal("No app supplied")
+				err.message.should.equal("No app supplied")
 				done()
 				return
 			return
 
 		it 'Get a Session with invalid app format: too short', (done) ->
 			rs.get {app: "a"}, (err, resp) ->
-				err.should.equal("Invalid app format")
+				err.message.should.equal("Invalid app format")
 				done()
 				return
 			return
 
 		it 'Get a Session with invalid token format: no token at all', (done) ->
 			rs.get {app: app1}, (err, resp) ->
-				err.should.equal("No token supplied")
+				err.message.should.equal("No token supplied")
 				done()
 				return
 			return
 
 		it 'Get a Session with invalid token format: token shorter than 64 chars', (done) ->
 			rs.get {app: app1, token: "lsdkjfslkfjsldfkj"}, (err, resp) ->
-				err.should.equal("Invalid token format")
+				err.message.should.equal("Invalid token format")
 				done()
 				return
 			return
 
 		it 'Get a Session with invalid token format: token longer than 64 chars', (done) ->
 			rs.get {app: app1, token: "0123456789012345678901234567890123456789012345678901234567890123456789"}, (err, resp) ->
-				err.should.equal("Invalid token format")
+				err.message.should.equal("Invalid token format")
 				done()
 				return
 			return
 
 		it 'Get a Session with invalid token format: token with invalid character', (done) ->
 			rs.get {app: app1, token: "!123456789012345678901234567890123456789012345678901234567891234"}, (err, resp) ->
-				err.should.equal("Invalid token format")
+				err.message.should.equal("Invalid token format")
 				done()
 				return
 			return
@@ -87,28 +87,28 @@ describe 'Redis-Sessions Test', ->
 	describe 'CREATE: Part 1', ->
 		it 'Create a session with invalid data: no app supplied', (done) ->
 			rs.create {}, (err, resp) ->
-				err.should.equal("No app supplied")
+				err.message.should.equal("No app supplied")
 				done()
 				return
 			return
 		
 		it 'Create a session with invalid data: no id supplied', (done) ->
 			rs.create {app: app1}, (err, resp) ->
-				err.should.equal("No id supplied")
+				err.message.should.equal("No id supplied")
 				done()
 				return
 			return
 		
 		it 'Create a session with invalid data: no ip supplied', (done) ->
 			rs.create {app: app1, id:"user1"}, (err, resp) ->
-				err.should.equal("No ip supplied")
+				err.message.should.equal("No ip supplied")
 				done()
 				return
 			return
 		
 		it 'Create a session with invalid data: ttl too short', (done) ->
 			rs.create {app: app1, id:"user1", ip: "127.0.0.1", ttl: 4}, (err, resp) ->
-				err.should.equal("ttl must be a positive integer >= 10")
+				err.message.should.equal("ttl must be a positive integer >= 10")
 				done()
 				return
 			return
@@ -362,31 +362,31 @@ describe 'Redis-Sessions Test', ->
 	describe 'SET', ->
 		it 'Set some params for token1 with no d: should fail', ( done ) ->
 			rs.set {app: app1, token: token1}, (err, resp) ->
-				err.should.equal("No d supplied.")
+				err.message.should.equal("No d supplied")
 				done()
 				return
 			return
 		it 'Set some params for token1 with d being a string: should fail', ( done ) ->
 			rs.set {app: app1, token: token1, d:"someString"}, (err, resp) ->
-				err.should.equal("d must be an object.")
+				err.message.should.equal("d must be an object")
 				done()
 				return
 			return
 		it 'Set some params for token1 with forbidden type (array): should fail', ( done ) ->
 			rs.set {app: app1, token: token1, d:{arr:[1,2,3]}}, (err, resp) ->
-				err.should.equal("d.arr has a forbidden type. Only strings, numbers, boolean and null are allowed.")
+				err.message.should.equal("d.arr has a forbidden type. Only strings, numbers, boolean and null are allowed.")
 				done()
 				return
 			return
 		it 'Set some params for token1 with forbidden type (object): should fail', ( done ) ->
 			rs.set {app: app1, token: token1, d:{obj:{bla:1}}}, (err, resp) ->
-				err.should.equal("d.obj has a forbidden type. Only strings, numbers, boolean and null are allowed.")
+				err.message.should.equal("d.obj has a forbidden type. Only strings, numbers, boolean and null are allowed.")
 				done()
 				return
 			return
 		it 'Set some params for token1 with an empty object: should fail', ( done ) ->
 			rs.set {app: app1, token: token1, d:{}}, (err, resp) ->
-				err.should.equal("d must containt at least one key.")
+				err.message.should.equal("d must containt at least one key.")
 				done()
 				return
 			return

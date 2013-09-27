@@ -33,7 +33,7 @@
     describe('GET: Part 1', function() {
       it('Get a Session with invalid app format: no app supplied', function(done) {
         rs.get({}, function(err, resp) {
-          err.should.equal("No app supplied");
+          err.message.should.equal("No app supplied");
           done();
         });
       });
@@ -41,7 +41,7 @@
         rs.get({
           app: "a"
         }, function(err, resp) {
-          err.should.equal("Invalid app format");
+          err.message.should.equal("Invalid app format");
           done();
         });
       });
@@ -49,7 +49,7 @@
         rs.get({
           app: app1
         }, function(err, resp) {
-          err.should.equal("No token supplied");
+          err.message.should.equal("No token supplied");
           done();
         });
       });
@@ -58,7 +58,7 @@
           app: app1,
           token: "lsdkjfslkfjsldfkj"
         }, function(err, resp) {
-          err.should.equal("Invalid token format");
+          err.message.should.equal("Invalid token format");
           done();
         });
       });
@@ -67,7 +67,7 @@
           app: app1,
           token: "0123456789012345678901234567890123456789012345678901234567890123456789"
         }, function(err, resp) {
-          err.should.equal("Invalid token format");
+          err.message.should.equal("Invalid token format");
           done();
         });
       });
@@ -76,7 +76,7 @@
           app: app1,
           token: "!123456789012345678901234567890123456789012345678901234567891234"
         }, function(err, resp) {
-          err.should.equal("Invalid token format");
+          err.message.should.equal("Invalid token format");
           done();
         });
       });
@@ -95,7 +95,7 @@
     describe('CREATE: Part 1', function() {
       it('Create a session with invalid data: no app supplied', function(done) {
         rs.create({}, function(err, resp) {
-          err.should.equal("No app supplied");
+          err.message.should.equal("No app supplied");
           done();
         });
       });
@@ -103,7 +103,7 @@
         rs.create({
           app: app1
         }, function(err, resp) {
-          err.should.equal("No id supplied");
+          err.message.should.equal("No id supplied");
           done();
         });
       });
@@ -112,7 +112,7 @@
           app: app1,
           id: "user1"
         }, function(err, resp) {
-          err.should.equal("No ip supplied");
+          err.message.should.equal("No ip supplied");
           done();
         });
       });
@@ -123,7 +123,7 @@
           ip: "127.0.0.1",
           ttl: 4
         }, function(err, resp) {
-          err.should.equal("ttl must be a positive integer >= 10");
+          err.message.should.equal("ttl must be a positive integer >= 10");
           done();
         });
       });
@@ -442,7 +442,7 @@
           app: app1,
           token: token1
         }, function(err, resp) {
-          err.should.equal("No d supplied.");
+          err.message.should.equal("No d supplied");
           done();
         });
       });
@@ -452,7 +452,7 @@
           token: token1,
           d: "someString"
         }, function(err, resp) {
-          err.should.equal("d must be an object.");
+          err.message.should.equal("d must be an object");
           done();
         });
       });
@@ -464,7 +464,7 @@
             arr: [1, 2, 3]
           }
         }, function(err, resp) {
-          err.should.equal("d.arr has a forbidden type. Only strings, numbers, boolean and null are allowed.");
+          err.message.should.equal("d.arr has a forbidden type. Only strings, numbers, boolean and null are allowed.");
           done();
         });
       });
@@ -478,7 +478,7 @@
             }
           }
         }, function(err, resp) {
-          err.should.equal("d.obj has a forbidden type. Only strings, numbers, boolean and null are allowed.");
+          err.message.should.equal("d.obj has a forbidden type. Only strings, numbers, boolean and null are allowed.");
           done();
         });
       });
@@ -488,7 +488,7 @@
           token: token1,
           d: {}
         }, function(err, resp) {
-          err.should.equal("d must containt at least one key.");
+          err.message.should.equal("d must containt at least one key.");
           done();
         });
       });

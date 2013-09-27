@@ -34,9 +34,10 @@ RedisInst = require "redis"
 class RedisSessions
 
 	constructor: (options={}) ->
+		@_initErrors()
 		@redisns = options.namespace or "rs"
 		@redisns = @redisns + ":"
-		
+
 		if options?.client?.constructor?.name is "RedisClient"
 			@redis = options.client
 		else
@@ -479,6 +480,23 @@ class RedisSessions
 		t + 'Z' + new Date().getTime().toString(36)
 		
 
+	_handleError: (cb, err, data={}) =>
+		# try to create a error Object with humanized message
+		if _.isString(err)
+			_err = new Error()
+			_err.name = err
+			_err.message = @_ERRORS?[err]?(data) or "unkown"
+		else 
+			_err = err
+		cb(_err)
+		return
+
+	_initErrors: =>
+		@_ERRORS = {}
+		for key, msg of @ERRORS
+			@_ERRORS[key] = _.template(msg)
+		return
+
 
 	_now: ->
 		parseInt((new Date()).getTime() / 1000)
@@ -536,37 +554,37 @@ class RedisSessions
 			switch item
 				when "app", "id", "ip", "token"
 					if not o[item]
-						cb("No #{item} supplied")
+						@_handleError(cb, "missingParameter", {item:item})
 						return false
 					o[item] = o[item].toString()
 					if not @_VALID[item].test(o[item])
-						cb("Invalid #{item} format")
+						@_handleError(cb, "invalidFormat", {item:item})
 						return false
 				when "ttl"
 					o.ttl = parseInt(o.ttl or 7200,10)
 					if _.isNaN(o.ttl) or not _.isNumber(o.ttl) or o.ttl < 10
-						cb("ttl must be a positive integer >= 10")
+						@_handleError(cb, "invalidValue", {msg:"ttl must be a positive integer >= 10"})
 						return false
 				when "dt"
 					o[item] = parseInt(o[item],10)
 					if _.isNaN(o[item]) or not _.isNumber(o[item]) or o[item] < 10
-						cb("dt must be a positive integer >= 10")
+						@_handleError(cb, "invalidValue", {msg:"ttl must be a positive integer >= 10"})
 						return false
 				when "d"
 					if not o[item]
-						cb("No d supplied.")
+						@_handleError(cb, "missingParameter", {item:item})
 						return false
 					if not _.isObject(o.d)
-						cb("d must be an object.")
+						@_handleError(cb, "invalidValue", {msg:"d must be an object"})
 						return false
 					keys = _.keys(o.d)
 					if not keys.length
-						cb("d must containt at least one key.")
+						@_handleError(cb, "invalidValue", {msg:"d must containt at least one key."})
 						return false
 					# Check if every key is either a boolean, string or a number
 					for e of o.d
 						if not _.isString(o.d[e]) and not _.isNumber(o.d[e]) and not _.isBoolean(o.d[e]) and not _.isNull(o.d[e])
-							cb("d.#{e} has a forbidden type. Only strings, numbers, boolean and null are allowed.")
+							@_handleError(cb, "invalidValue", {msg:"d.#{e} has a forbidden type. Only strings, numbers, boolean and null are allowed."})
 							return false
 		return o
 
@@ -590,5 +608,10 @@ class RedisSessions
 			return
 		return
 
+	ERRORS:
+		"missingParameter": "No <%= item %> supplied"
+		"invalidFormat": "Invalid <%= item %> format"
+		"invalidValue": "<%= msg %>"
+	
 
 module.exports = RedisSessions
