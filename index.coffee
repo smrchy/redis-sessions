@@ -37,10 +37,13 @@ class RedisSessions
 		@redisns = options.namespace or "rs"
 		@redisns = @redisns + ":"
 		
-		port = options.port or 6379
-		host = options.host or "127.0.0.1"
+		if options?.client?.constructor?.name is "RedisClient"
+			@redis = options.client
+		else
+			port = options.port or 6379
+			host = options.host or "127.0.0.1"
 
-		@redis = RedisInst.createClient(port, host)
+			@redis = RedisInst.createClient(port, host)
 
 		wipe = options.wipe or 600
 		if wipe < 10

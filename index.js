@@ -24,7 +24,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
   RedisSessions = (function() {
     function RedisSessions(options) {
-      var host, port, wipe;
+      var host, port, wipe, _ref, _ref1;
       if (options == null) {
         options = {};
       }
@@ -42,9 +42,13 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       this.activity = __bind(this.activity, this);
       this.redisns = options.namespace || "rs";
       this.redisns = this.redisns + ":";
-      port = options.port || 6379;
-      host = options.host || "127.0.0.1";
-      this.redis = RedisInst.createClient(port, host);
+      if ((options != null ? (_ref = options.client) != null ? (_ref1 = _ref.constructor) != null ? _ref1.name : void 0 : void 0 : void 0) === "RedisClient") {
+        this.redis = options.client;
+      } else {
+        port = options.port || 6379;
+        host = options.host || "127.0.0.1";
+        this.redis = RedisInst.createClient(port, host);
+      }
       wipe = options.wipe || 600;
       if (wipe < 10) {
         wipe = 10;
@@ -465,7 +469,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       app: /^([a-zA-Z0-9_-]){3,20}$/,
       id: /^([a-zA-Z0-9_-]){1,64}$/,
       ip: /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-      token: /^([a-zA-Z0-9]){64}$/
+      token: /^([a-zA-Z0-9_-]){16,64}$/
     };
 
     RedisSessions.prototype._validate = function(o, items, cb) {
