@@ -52,8 +52,10 @@ RedisSessions = require("redis-sessions");
 //
 // `port`: *optional* Default: 6379. The Redis port.
 // `host`, *optional* Default: "127.0.0.1". The Redis host.
+// `options`, *optional* Default: {}. Additional options. See: https://github.com/mranney/node_redis#rediscreateclientport-host-options
 // `namespace`: *optional* Default: "rs". The namespace prefix for all Redis keys used by this module.
 // `wipe`: *optional* Default: 600. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
+// `client`: *optional* An external RedisClient object which will be used for the connection.
 //
 rs = new RedisSessions();
 
@@ -311,6 +313,10 @@ rs.killall({app: rsapp},
     */  
   });
 ```
+
+## CHANGELOG
+
+See https://github.com/smrchy/redis-sessions/blob/master/CHANGELOG.md
 
 ## The MIT License (MIT)
 

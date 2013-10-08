@@ -28,25 +28,24 @@ RedisInst = require "redis"
 #
 #	`port`: *optional* Default: 6379. The Redis port.
 #	`host`, *optional* Default: "127.0.0.1". The Redis host.
+#	`options`, *optional* Default: {}. Additional options. See [https://github.com/mranney/node_redis#rediscreateclientport-host-options](redis.createClient))
 #	`namespace`: *optional* Default: "rs". The namespace prefix for all Redis keys used by this module.
 #	`wipe`: *optional* Default: 600. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
+#	`client`: *optional* An external RedisClient object which will be used for the connection.
 #
 class RedisSessions
 
-	constructor: (options={}) ->
+	constructor: (o={}) ->
 		@_initErrors()
-		@redisns = options.namespace or "rs"
+		@redisns = o.namespace or "rs"
 		@redisns = @redisns + ":"
 
-		if options?.client?.constructor?.name is "RedisClient"
-			@redis = options.client
+		if o.client?.constructor?.name is "RedisClient"
+			@redis = o.client
 		else
-			port = options.port or 6379
-			host = options.host or "127.0.0.1"
+			@redis = RedisInst.createClient(o.port or 6379, o.host or "127.0.0.1", o.options or {})
 
-			@redis = RedisInst.createClient(port, host)
-
-		wipe = options.wipe or 600
+		wipe = o.wipe or 600
 		if wipe < 10
 			wipe = 10
 		setInterval(@_wipe, wipe*1000)

@@ -23,10 +23,10 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
   RedisInst = require("redis");
 
   RedisSessions = (function() {
-    function RedisSessions(options) {
-      var host, port, wipe, _ref, _ref1;
-      if (options == null) {
-        options = {};
+    function RedisSessions(o) {
+      var wipe, _ref, _ref1;
+      if (o == null) {
+        o = {};
       }
       this._wipe = __bind(this._wipe, this);
       this._returnSessions = __bind(this._returnSessions, this);
@@ -43,16 +43,14 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       this.create = __bind(this.create, this);
       this.activity = __bind(this.activity, this);
       this._initErrors();
-      this.redisns = options.namespace || "rs";
+      this.redisns = o.namespace || "rs";
       this.redisns = this.redisns + ":";
-      if ((options != null ? (_ref = options.client) != null ? (_ref1 = _ref.constructor) != null ? _ref1.name : void 0 : void 0 : void 0) === "RedisClient") {
-        this.redis = options.client;
+      if (((_ref = o.client) != null ? (_ref1 = _ref.constructor) != null ? _ref1.name : void 0 : void 0) === "RedisClient") {
+        this.redis = o.client;
       } else {
-        port = options.port || 6379;
-        host = options.host || "127.0.0.1";
-        this.redis = RedisInst.createClient(port, host);
+        this.redis = RedisInst.createClient(o.port || 6379, o.host || "127.0.0.1", o.options || {});
       }
-      wipe = options.wipe || 600;
+      wipe = o.wipe || 600;
       if (wipe < 10) {
         wipe = 10;
       }
