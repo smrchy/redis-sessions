@@ -10,9 +10,11 @@
 		"test": "mocha ./test/test.js"
 	},
 	"dependencies": {
-		"hiredis": "*",
 		"redis": "*",
 		"underscore": "*"
+	},
+	"optionalDependencies": {
+		"hiredis": "*"
 	},
 	"devDependencies": {
 		"mocha": "*",
