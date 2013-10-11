@@ -76,7 +76,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Get a Session with valid token format but token should not exist', (done) ->
 			rs.get {app: app1, token: "0123456789012345678901234567890123456789012345678901234567891234"}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.should.not.have.keys('id')
 				done()
 				return
@@ -287,7 +287,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Get the Session for token1: should work', ( done ) ->
 			rs.get {app: app1, token: token1}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.should.have.keys('id','r','w','ttl','idle','ip')
 				resp.id.should.equal("user1")
 				resp.ttl.should.equal(30)
@@ -298,7 +298,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Get the Session for token1 again: should work', ( done ) ->
 			rs.get {app: app1, token: token1}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.should.have.keys('id','r','w','ttl','idle','ip')
 				resp.id.should.equal("user1")
 				resp.ttl.should.equal(30)
@@ -321,7 +321,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Kill the Session for token1: should work', ( done ) ->
 			rs.kill {app: app1, token: token1}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.should.have.keys('kill')
 				resp.kill.should.equal(1)
 				done()
@@ -331,7 +331,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Get the Session for token1: should fail', ( done ) ->
 			rs.get {app: app1, token: token1}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.should.not.have.keys('id')
 				done()
 				return
@@ -351,7 +351,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Get the Session for token2', ( done ) ->
 			rs.get {app: app1, token: token2}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.should.have.keys('id','r','w','ttl','idle','ip')
 				resp.id.should.equal("user2")
 				resp.ttl.should.equal(10)
@@ -400,14 +400,14 @@ describe 'Redis-Sessions Test', ->
 		it 'Set some params for token2: should work', ( done ) ->
 			rs.set {app: app1, token: token2, d: {hi: "ho", count: 120, premium: true, nix:null }}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				done()
 				return
 			return
 		it 'Get the session for token2: should work and contain new values', (done) ->
 			rs.get {app: app1, token: token2}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.d.should.have.keys('hi','count','premium')
 				done()
 				return
@@ -415,7 +415,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Remove a param from token2: should work', ( done ) ->
 			rs.set {app: app1, token: token2, d: {hi: null}}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.d.should.have.keys('count','premium')
 				done()
 				return
@@ -423,7 +423,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Get the session for token2: should work and contain modified values', (done) ->
 			rs.get {app: app1, token: token2}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.d.should.have.keys('count','premium')
 				done()
 				return
@@ -432,7 +432,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Remove all remaining params from token2: should work', ( done ) ->
 			rs.set {app: app1, token: token2, d: {count: null, premium: null}}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.should.not.have.keys('d')
 				done()
 				return
@@ -440,7 +440,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Get the session for token2: should work and not contain the d key', (done) ->
 			rs.get {app: app1, token: token2}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.should.not.have.keys('d')
 				done()
 				return
@@ -448,7 +448,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Remove all remaining params from token2 again: should work', ( done ) ->
 			rs.set {app: app1, token: token2, d: {count: null, premium: null}}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.should.not.have.keys('d')
 				done()
 				return
@@ -456,7 +456,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Get the session for token2: should work and not contain the d key', (done) ->
 			rs.get {app: app1, token: token2}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.should.not.have.keys('d')
 				done()
 				return
@@ -465,7 +465,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Set some params for token2: should work', ( done ) ->
 			rs.set {app: app1, token: token2, d: {a: "sometext", b: 20, c: true, d: false}}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.d.should.have.keys('a','b','c','d')
 				resp.d.a.should.equal("sometext")
 				resp.d.b.should.equal(20)
@@ -478,7 +478,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Modify some params for token2: should work', ( done ) ->
 			rs.set {app: app1, token: token2, d: {a: false, b: "some_text", c: 20, d: true, e:20.212}}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.d.should.have.keys('a','b','c','d','e')
 				resp.d.a.should.equal(false)
 				resp.d.b.should.equal('some_text')
@@ -491,7 +491,7 @@ describe 'Redis-Sessions Test', ->
 		it 'Get the params for token2: should work', ( done ) ->
 			rs.get {app: app1, token: token2}, (err, resp) ->
 				should.not.exist(err)
-				resp.should.be.a('object')
+				resp.should.be.an.Object
 				resp.d.should.have.keys('a','b','c','d','e')
 				resp.d.a.should.equal(false)
 				resp.d.b.should.equal('some_text')

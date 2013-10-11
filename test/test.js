@@ -86,7 +86,7 @@
           token: "0123456789012345678901234567890123456789012345678901234567891234"
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.should.not.have.keys('id');
           done();
         });
@@ -354,7 +354,7 @@
           token: token1
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
           resp.id.should.equal("user1");
           resp.ttl.should.equal(30);
@@ -367,7 +367,7 @@
           token: token1
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
           resp.id.should.equal("user1");
           resp.ttl.should.equal(30);
@@ -393,7 +393,7 @@
           token: token1
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.should.have.keys('kill');
           resp.kill.should.equal(1);
           done();
@@ -405,7 +405,7 @@
           token: token1
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.should.not.have.keys('id');
           done();
         });
@@ -428,7 +428,7 @@
           token: token2
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
           resp.id.should.equal("user2");
           resp.ttl.should.equal(10);
@@ -517,7 +517,7 @@
           }
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           done();
         });
       });
@@ -527,7 +527,7 @@
           token: token2
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.d.should.have.keys('hi', 'count', 'premium');
           done();
         });
@@ -541,7 +541,7 @@
           }
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.d.should.have.keys('count', 'premium');
           done();
         });
@@ -552,7 +552,7 @@
           token: token2
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.d.should.have.keys('count', 'premium');
           done();
         });
@@ -567,7 +567,7 @@
           }
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.should.not.have.keys('d');
           done();
         });
@@ -578,7 +578,7 @@
           token: token2
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.should.not.have.keys('d');
           done();
         });
@@ -593,7 +593,7 @@
           }
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.should.not.have.keys('d');
           done();
         });
@@ -604,7 +604,7 @@
           token: token2
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.should.not.have.keys('d');
           done();
         });
@@ -621,7 +621,7 @@
           }
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.d.should.have.keys('a', 'b', 'c', 'd');
           resp.d.a.should.equal("sometext");
           resp.d.b.should.equal(20);
@@ -643,7 +643,7 @@
           }
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.d.should.have.keys('a', 'b', 'c', 'd', 'e');
           resp.d.a.should.equal(false);
           resp.d.b.should.equal('some_text');
@@ -659,7 +659,7 @@
           token: token2
         }, function(err, resp) {
           should.not.exist(err);
-          resp.should.be.a('object');
+          resp.should.be.an.Object;
           resp.d.should.have.keys('a', 'b', 'c', 'd', 'e');
           resp.d.a.should.equal(false);
           resp.d.b.should.equal('some_text');
