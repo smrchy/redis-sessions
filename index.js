@@ -15,16 +15,23 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 
 (function() {
-  var RedisInst, RedisSessions, _,
-    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+  var EventEmitter, RedisInst, RedisSessions, _,
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   _ = require("underscore");
 
   RedisInst = require("redis");
 
-  RedisSessions = (function() {
+  EventEmitter = require("events").EventEmitter;
+
+  RedisSessions = (function(_super) {
+    __extends(RedisSessions, _super);
+
     function RedisSessions(o) {
-      var wipe, _ref, _ref1;
+      var wipe, _ref, _ref1,
+        _this = this;
       if (o == null) {
         o = {};
       }
@@ -50,6 +57,20 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       } else {
         this.redis = RedisInst.createClient(o.port || 6379, o.host || "127.0.0.1", o.options || {});
       }
+      this.connected = this.redis.connected || false;
+      this.redis.on("connect", function() {
+        _this.connected = true;
+        _this.emit("connect");
+      });
+      this.redis.on("error", function(err) {
+        if (err.message.indexOf("ECONNREFUSED")) {
+          _this.connected = false;
+          _this.emit("disconnect");
+        } else {
+          console.error("Redis ERROR", err);
+          _this.emit("error");
+        }
+      });
       wipe = o.wipe || 600;
       if (wipe < 10) {
         wipe = 10;
@@ -602,7 +623,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
     return RedisSessions;
 
-  })();
+  })(EventEmitter);
 
   module.exports = RedisSessions;
 

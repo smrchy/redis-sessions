@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.3.3
+
+ * Redis connection events
+
 ## 0.3.2
 
 * Make `hiredis` optional. #5

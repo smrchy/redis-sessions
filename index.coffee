@@ -17,6 +17,8 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 _ = require "underscore"
 RedisInst = require "redis"
 
+EventEmitter = require( "events" ).EventEmitter
+
 # # RedisSessions
 #
 # To create a new instance use:
@@ -33,7 +35,7 @@ RedisInst = require "redis"
 #	`wipe`: *optional* Default: 600. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
 #	`client`: *optional* An external RedisClient object which will be used for the connection.
 #
-class RedisSessions
+class RedisSessions extends EventEmitter
 
 	constructor: (o={}) ->
 		@_initErrors()
@@ -44,6 +46,23 @@ class RedisSessions
 			@redis = o.client
 		else
 			@redis = RedisInst.createClient(o.port or 6379, o.host or "127.0.0.1", o.options or {})
+	
+		@connected = @redis.connected or false
+		@redis.on "connect", =>
+			@connected = true
+			@emit( "connect" )
+			return
+
+
+		@redis.on "error", ( err )=>
+			if err.message.indexOf( "ECONNREFUSED" )
+				@connected = false
+				@emit( "disconnect" )
+			else
+				console.error( "Redis ERROR", err )
+				@emit( "error" )
+			return
+
 
 		wipe = o.wipe or 600
 		if wipe < 10
