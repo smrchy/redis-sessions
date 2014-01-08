@@ -492,20 +492,19 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
         return _results;
       }).call(this);
       this.redis.multi(mc).exec(function(err, resp) {
-        var o;
+        var o, session, _i, _len;
         if (err) {
           cb(err);
           return;
         }
-        o = (function() {
-          var _i, _len, _results;
-          _results = [];
-          for (_i = 0, _len = resp.length; _i < _len; _i++) {
-            e = resp[_i];
-            _results.push(this._prepareSession(e));
+        o = [];
+        for (_i = 0, _len = resp.length; _i < _len; _i++) {
+          e = resp[_i];
+          session = _this._prepareSession(e);
+          if (session !== null) {
+            o.push(session);
           }
-          return _results;
-        }).call(_this);
+        }
         cb(null, {
           sessions: o
         });

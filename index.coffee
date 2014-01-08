@@ -553,8 +553,11 @@ class RedisSessions extends EventEmitter
 			if err
 				cb(err)
 				return
-			o = for e in resp
-				@_prepareSession(e)
+			o = []
+			for e in resp
+				session = @_prepareSession(e)
+				if session isnt null
+					o.push(session)
 			cb(null, {sessions: o})
 			return
 		return
