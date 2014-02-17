@@ -99,7 +99,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       if (options === false) {
         return;
       }
-      token = this._createToken();
+      token = options.token || this._createToken();
       mc = this._createMultiStatement(options.app, token, options.id, options.ttl);
       mc.push(["sadd", "" + this.redisns + options.app + ":us:" + options.id, token]);
       mc.push(["hmset", "" + this.redisns + options.app + ":" + token, "id", options.id, "r", 1, "w", 1, "ip", options.ip, "la", this._now(), "ttl", parseInt(options.ttl)]);
@@ -515,7 +515,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       app: /^([a-zA-Z0-9_-]){3,20}$/,
       id: /^([a-zA-Z0-9_-]){1,64}$/,
       ip: /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-      token: /^([a-zA-Z0-9]){64}$/
+      token: /^([a-zA-Z0-9]){1,64}$/
     };
 
     RedisSessions.prototype._validate = function(o, items, cb) {
