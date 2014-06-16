@@ -366,6 +366,12 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
+		it 'Set some params for token1 with d being an array', ( done ) ->
+			rs.set {app: app1, token: token1, d:[12,"bla"]}, (err, resp) ->
+				err.message.should.equal("d must be an object")
+				done()
+				return
+			return
 		it 'Set some params for token1 with d being a string: should fail', ( done ) ->
 			rs.set {app: app1, token: token1, d:"someString"}, (err, resp) ->
 				err.message.should.equal("d must be an object")
