@@ -3,7 +3,7 @@
 [![Build Status](https://secure.travis-ci.org/smrchy/redis-sessions.png?branch=master)](http://travis-ci.org/smrchy/redis-sessions)
 [![Dependency Status](https://david-dm.org/smrchy/redis-sessions.svg)](https://david-dm.org/smrchy/redis-sessions)
 
-[![Redis-Sessions](https://nodei.co/npm/redis-sessions.png?downloads=true&stars=true)](https://nodei.co/npm/node-cache/)
+[![Redis-Sessions](https://nodei.co/npm/redis-sessions.png?downloads=true&stars=true)](https://nodei.co/npm/redis-sessions/)
 
 This is a NodeJS module to keep sessions in a Redis datastore and add some useful methods.
 
