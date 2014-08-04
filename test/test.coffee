@@ -11,6 +11,7 @@ describe 'Redis-Sessions Test', ->
 	token1 = null
 	token2 = null
 	token3 = null
+	token4 = null
 	bulksessions = []
 
 
@@ -142,6 +143,32 @@ describe 'Redis-Sessions Test', ->
 				return
 			return
 
+		it 'Create yet another session for user1 with a `d` object: should return a token', (done) ->
+			rs.create {app: app1, id:"user1", ip: "127.0.0.2", ttl: 30, d:{"foo":"bar","nu":null,"hi":123,"lo":-123,"boo":true,"boo2":false}}, (err, resp) ->
+				should.not.exist(err)
+				should.exist(resp)
+				resp.should.have.keys('token')
+				token4 = resp.token
+				done()
+				return
+			return
+
+		it 'Create yet another session for user1 with an invalid `d` object: should return a token', (done) ->
+			rs.create {app: app1, id:"user1", ip: "127.0.0.2", ttl: 30, d:{"inv":[]}}, (err, resp) ->
+				should.not.exist(resp)
+				should.exist(err)
+				done()
+				return
+			return
+
+		it 'Create yet another session for user1 with an invalid `d` object: should return a token', (done) ->
+			rs.create {app: app1, id:"user1", ip: "127.0.0.2", ttl: 30, d:{}}, (err, resp) ->
+				should.not.exist(resp)
+				should.exist(err)
+				done()
+				return
+			return
+
 		it 'Activity should STILL show 1 user', (done) ->
 			rs.activity {app: app1, dt: 60}, (err, resp) ->
 				should.not.exist(err)
@@ -172,12 +199,12 @@ describe 'Redis-Sessions Test', ->
 				return
 			return
 
-		it 'Sessions of App should return 3 users', (done) ->
+		it 'Sessions of App should return 4 users', (done) ->
 			rs.soapp {app: app1, dt: 60}, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('sessions')
-				resp.sessions.length.should.equal(3)
+				resp.sessions.length.should.equal(4)
 				done()
 				return
 			return
@@ -308,12 +335,12 @@ describe 'Redis-Sessions Test', ->
 			return
 
 
-		it 'Sessions of App should return 3 users', (done) ->
+		it 'Sessions of App should return 4 users', (done) ->
 			rs.soapp {app: app1, dt: 60}, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('sessions')
-				resp.sessions.length.should.equal(3)
+				resp.sessions.length.should.equal(4)
 				done()
 				return
 			return
@@ -355,6 +382,17 @@ describe 'Redis-Sessions Test', ->
 				resp.should.have.keys('id','r','w','ttl','idle','ip')
 				resp.id.should.equal("user2")
 				resp.ttl.should.equal(10)
+				done()
+				return
+			return
+		it 'Get the Session for token4', ( done ) ->
+			rs.get {app: app1, token: token4}, (err, resp) ->
+				should.not.exist(err)
+				resp.should.be.an.Object
+				resp.should.have.keys('id','r','w','ttl','idle','ip','d')
+				resp.id.should.equal("user1")
+				resp.ttl.should.equal(30)
+				resp.d.foo.should.equal("bar")
 				done()
 				return
 			return

@@ -64,7 +64,13 @@ rsapp = "myapp";
 
 ### Create a session
 
-The `ttl` parameter is optional and defaults to 7200.
+Parameters:
+
+* `app` (String) The app id (namespace) for this session.
+* `id` (String) The user id of this user. Note: There can be multiple sessions for the same user id. If the user uses multiple client devices.
+* `ip` (String) IP address of the user. This is used to show all ips from which the user is logged in.
+* `ttl` (Number) *optional* The "Time-To-Live" for the session. Default: 7200.
+* `d` (Object) *optional* Additional data to set for this sessions. (see the "set" method)
 
 ```javascript
 
@@ -75,9 +81,13 @@ rs.create({
   id: "user1001",
   ip: "192.168.22.58",
   ttl: 3600},
+  d: { 
+    foo: "bar",
+    unread_msgs: 34
+  },
   function(err, resp) {
     // resp should be something like 
-   // {token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"}
+    // {token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"}
   });
 ```
 
@@ -104,6 +114,7 @@ rs.set({
       "ttl": 7200, 
       "d":
         {
+          "foo": "bar",
           "unread_msgs": 12,
           "last_action": "/read/news",
           "birthday": "2013-08-13"
@@ -131,7 +142,8 @@ rs.get({
       "idle": 21,  // The idle time in seconds.
       "ttl": 7200, // Timeout after 7200 idle time
       "d":
-        {
+         {
+          "foo": "bar",
           "unread_msgs": 12,
           "last_action": "/read/news",
           "birthday": "2013-08-13"
@@ -171,7 +183,8 @@ rs.set({
       "d":
         {
           "last_action": "/read/msg/2121",
-          "birthday": "2013-08-13"
+          "birthday": "2013-08-13",
+          "foo": "bar"
         }
     }
     */  

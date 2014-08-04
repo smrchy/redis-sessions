@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.3.6
+
+* Allow `d` parameter on create.
+* Updated docs.
+* Added tests for `d` on create feature.
+
 ## 0.3.3
 
  * Redis connection events

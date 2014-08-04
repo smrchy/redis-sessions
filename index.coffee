@@ -116,7 +116,8 @@ class RedisSessions extends EventEmitter
 
 
 	create: (options, cb) =>
-		options = @_validate(options, ["app","id","ip","ttl"], cb)
+		options.d = options.d or {___duMmYkEy:null}
+		options = @_validate(options, ["app","id","ip","ttl","d"], cb)
 		if options is false
 			return
 		token = @_createToken()
@@ -124,7 +125,7 @@ class RedisSessions extends EventEmitter
 		mc = @_createMultiStatement(options.app, token, options.id, options.ttl)
 		mc.push(["sadd", "#{@redisns}#{options.app}:us:#{options.id}", token])
 		# Create the default session hash
-		mc.push([
+		thesession = [
 			"hmset"
 			"#{@redisns}#{options.app}:#{token}"
 			"id"
@@ -139,7 +140,17 @@ class RedisSessions extends EventEmitter
 			@_now()
 			"ttl"
 			parseInt(options.ttl)
-		])
+		]
+		if options.d
+			# Remove null values
+			nullkeys = []
+			for e of options.d
+				if options.d[e] is null
+					nullkeys.push(e)
+			options.d = _.omit(options.d, nullkeys)
+			if _.keys(options.d).length
+				thesession = thesession.concat(["d", JSON.stringify(options.d)])
+		mc.push(thesession)
 		# Run the redis statement
 		@redis.multi(mc).exec (err, resp) ->
 			if err 
@@ -393,7 +404,7 @@ class RedisSessions extends EventEmitter
 				cb( null, {})
 				return
 
-			# 
+			# Cleanup `d`
 			nullkeys = []
 			for e of options.d
 				if options.d[e] is null
@@ -595,7 +606,7 @@ class RedisSessions extends EventEmitter
 					if not o[item]
 						@_handleError(cb, "missingParameter", {item:item})
 						return false
-					if not _.isObject(o.d)
+					if not _.isObject(o.d) or _.isArray(o.d)
 						@_handleError(cb, "invalidValue", {msg:"d must be an object"})
 						return false
 					keys = _.keys(o.d)

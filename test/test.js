@@ -11,13 +11,14 @@
   RedisSessions = require("../index");
 
   describe('Redis-Sessions Test', function() {
-    var app1, app2, bulksessions, rs, token1, token2, token3;
+    var app1, app2, bulksessions, rs, token1, token2, token3, token4;
     rs = null;
     app1 = "test";
     app2 = "TEST";
     token1 = null;
     token2 = null;
     token3 = null;
+    token4 = null;
     bulksessions = [];
     before(function(done) {
       done();
@@ -166,6 +167,56 @@
           done();
         });
       });
+      it('Create yet another session for user1 with a `d` object: should return a token', function(done) {
+        rs.create({
+          app: app1,
+          id: "user1",
+          ip: "127.0.0.2",
+          ttl: 30,
+          d: {
+            "foo": "bar",
+            "nu": null,
+            "hi": 123,
+            "lo": -123,
+            "boo": true,
+            "boo2": false
+          }
+        }, function(err, resp) {
+          should.not.exist(err);
+          should.exist(resp);
+          resp.should.have.keys('token');
+          token4 = resp.token;
+          done();
+        });
+      });
+      it('Create yet another session for user1 with an invalid `d` object: should return a token', function(done) {
+        rs.create({
+          app: app1,
+          id: "user1",
+          ip: "127.0.0.2",
+          ttl: 30,
+          d: {
+            "inv": []
+          }
+        }, function(err, resp) {
+          should.not.exist(resp);
+          should.exist(err);
+          done();
+        });
+      });
+      it('Create yet another session for user1 with an invalid `d` object: should return a token', function(done) {
+        rs.create({
+          app: app1,
+          id: "user1",
+          ip: "127.0.0.2",
+          ttl: 30,
+          d: {}
+        }, function(err, resp) {
+          should.not.exist(resp);
+          should.exist(err);
+          done();
+        });
+      });
       it('Activity should STILL show 1 user', function(done) {
         rs.activity({
           app: app1,
@@ -204,7 +255,7 @@
           done();
         });
       });
-      it('Sessions of App should return 3 users', function(done) {
+      it('Sessions of App should return 4 users', function(done) {
         rs.soapp({
           app: app1,
           dt: 60
@@ -212,7 +263,7 @@
           should.not.exist(err);
           should.exist(resp);
           resp.should.have.keys('sessions');
-          resp.sessions.length.should.equal(3);
+          resp.sessions.length.should.equal(4);
           done();
         });
       });
@@ -375,7 +426,7 @@
           done();
         });
       });
-      it('Sessions of App should return 3 users', function(done) {
+      it('Sessions of App should return 4 users', function(done) {
         rs.soapp({
           app: app1,
           dt: 60
@@ -383,7 +434,7 @@
           should.not.exist(err);
           should.exist(resp);
           resp.should.have.keys('sessions');
-          resp.sessions.length.should.equal(3);
+          resp.sessions.length.should.equal(4);
           done();
         });
       });
@@ -435,6 +486,20 @@
           done();
         });
       });
+      it('Get the Session for token4', function(done) {
+        rs.get({
+          app: app1,
+          token: token4
+        }, function(err, resp) {
+          should.not.exist(err);
+          resp.should.be.an.Object;
+          resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip', 'd');
+          resp.id.should.equal("user1");
+          resp.ttl.should.equal(30);
+          resp.d.foo.should.equal("bar");
+          done();
+        });
+      });
     });
     describe('SET', function() {
       it('Set some params for token1 with no d: should fail', function(done) {
@@ -443,6 +508,16 @@
           token: token1
         }, function(err, resp) {
           err.message.should.equal("No d supplied");
+          done();
+        });
+      });
+      it('Set some params for token1 with d being an array', function(done) {
+        rs.set({
+          app: app1,
+          token: token1,
+          d: [12, "bla"]
+        }, function(err, resp) {
+          err.message.should.equal("d must be an object");
           done();
         });
       });

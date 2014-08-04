@@ -94,15 +94,31 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
     };
 
     RedisSessions.prototype.create = function(options, cb) {
-      var mc, token;
-      options = this._validate(options, ["app", "id", "ip", "ttl"], cb);
+      var e, mc, nullkeys, thesession, token;
+      options.d = options.d || {
+        ___duMmYkEy: null
+      };
+      options = this._validate(options, ["app", "id", "ip", "ttl", "d"], cb);
       if (options === false) {
         return;
       }
       token = this._createToken();
       mc = this._createMultiStatement(options.app, token, options.id, options.ttl);
       mc.push(["sadd", "" + this.redisns + options.app + ":us:" + options.id, token]);
-      mc.push(["hmset", "" + this.redisns + options.app + ":" + token, "id", options.id, "r", 1, "w", 1, "ip", options.ip, "la", this._now(), "ttl", parseInt(options.ttl)]);
+      thesession = ["hmset", "" + this.redisns + options.app + ":" + token, "id", options.id, "r", 1, "w", 1, "ip", options.ip, "la", this._now(), "ttl", parseInt(options.ttl)];
+      if (options.d) {
+        nullkeys = [];
+        for (e in options.d) {
+          if (options.d[e] === null) {
+            nullkeys.push(e);
+          }
+        }
+        options.d = _.omit(options.d, nullkeys);
+        if (_.keys(options.d).length) {
+          thesession = thesession.concat(["d", JSON.stringify(options.d)]);
+        }
+      }
+      mc.push(thesession);
       this.redis.multi(mc).exec(function(err, resp) {
         if (err) {
           cb(err);
@@ -566,7 +582,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
               });
               return false;
             }
-            if (!_.isObject(o.d)) {
+            if (!_.isObject(o.d) || _.isArray(o.d)) {
               this._handleError(cb, "invalidValue", {
                 msg: "d must be an object"
               });
