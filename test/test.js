@@ -2,7 +2,7 @@
 (function() {
   var RedisSessions, async, should, _;
 
-  _ = require("underscore");
+  _ = require("lodash");
 
   should = require("should");
 

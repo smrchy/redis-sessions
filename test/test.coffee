@@ -1,4 +1,4 @@
-_ = require "underscore"
+_ = require "lodash"
 should = require "should"
 async = require "async"
 RedisSessions = require "../index" 
@@ -23,7 +23,6 @@ describe 'Redis-Sessions Test', ->
 		done()		
 		return
 	
-
 
 	it 'get a RedisSessions instance', (done) ->
 		rs = new RedisSessions()

@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.3.7 
+
+* Switched from underscore to lodash
+
 ## 0.3.6
 
 * Allow `d` parameter on create.
