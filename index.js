@@ -372,7 +372,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
         /* You can pass the new optionnal parameter to precise if you want increase the expire time */
         if(options.increaseExpire)
-          mc.push(["expire",  "" + this.redisns + options.app + ":" + token ,  parseInt(options.ttl)]);
+          mc.push(["expire",  "" + thekey ,  parseInt(options.ttl)]);
 
         if (resp.idle > 1) {
           mc.push(["hset", thekey, "la", _this._now()]);
