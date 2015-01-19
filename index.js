@@ -26,6 +26,16 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
   EventEmitter = require("events").EventEmitter;
 
+  var debug;
+  if (process.env.REDIS_SESSIONS_DEBUG && /true/.test(process.env.REDIS_SESSIONS_DEBUG)) {
+    debug = function (x) {
+      console.log(x);
+    };
+  } else {
+    debug = function () {
+    };
+  }
+
   RedisSessions = (function(_super) {
     __extends(RedisSessions, _super);
 
@@ -615,7 +625,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           return;
         }
         if (resp.length) {
-          console.log("WIPING:", resp.length, " sessions");
+          debug("WIPING:", resp.length, " sessions");
           _.each(resp, function(e) {
             var options;
             e = e.split(':');
