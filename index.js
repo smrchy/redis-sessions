@@ -615,7 +615,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           return;
         }
         if (resp.length) {
-          console.log("WIPING:", resp.length, " sessions");
           _.each(resp, function(e) {
             var options;
             e = e.split(':');

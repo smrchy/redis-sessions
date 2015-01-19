@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.3.8
+
+* Removed debug message when wiping timed out sessions.
+
 ## 0.3.7 
 
 * Switched from underscore to lodash

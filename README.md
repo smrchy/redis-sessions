@@ -218,6 +218,7 @@ Note: If {kill: 0} is returned the session was not found.
 ### Activity
 
 Query the amount of active session within the last 10 minutes (600 seconds).
+Note: Multiple sessions from the same user id will be counted as one.
 
 ```javascript
 

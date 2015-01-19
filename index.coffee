@@ -67,7 +67,7 @@ class RedisSessions extends EventEmitter
 		wipe = o.wipe or 600
 		if wipe < 10
 			wipe = 10
-		setInterval(@_wipe, wipe*1000)
+		setInterval(@_wipe, wipe * 1000)
 
 
 	# ## Activity
@@ -628,7 +628,6 @@ class RedisSessions extends EventEmitter
 			if err
 				return
 			if resp.length
-				console.log "WIPING:", resp.length, " sessions"
 				_.each resp, (e) =>
 					e = e.split(':')
 					options =
