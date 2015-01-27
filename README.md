@@ -83,10 +83,11 @@ rs.create({
   app: rsapp,
   id: "user1001",
   ip: "192.168.22.58",
-  ttl: 3600},
+  ttl: 3600,
   d: { 
     foo: "bar",
     unread_msgs: 34
+  }
   },
   function(err, resp) {
     // resp should be something like 
