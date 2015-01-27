@@ -119,6 +119,13 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
         }
       }
       mc.push(thesession);
+
+			/*
+      * Only an 'expire command' can allow to redis to send an event when the object is removed from redis
+      * With Redis -v >= 2.8
+      * */
+      mc.push(["expire",  "" + this.redisns + options.app + ":" + token ,  parseInt(options.ttl)]);
+
       this.redis.multi(mc).exec(function(err, resp) {
         if (err) {
           cb(err);
@@ -362,6 +369,11 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
         thekey = "" + _this.redisns + options.app + ":" + options.token;
         mc = _this._createMultiStatement(options.app, options.token, resp.id, resp.ttl);
         mc.push(["hincrby", thekey, "w", 1]);
+
+        /* You can pass the new optionnal parameter to precise if you want increase the expire time */
+        if(options.increaseExpire)
+          mc.push(["expire",  "" + thekey ,  parseInt(options.ttl)]);
+
         if (resp.idle > 1) {
           mc.push(["hset", thekey, "la", _this._now()]);
         }
