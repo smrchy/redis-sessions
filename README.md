@@ -138,7 +138,7 @@ rs.set({
   });
 ```
 
-Note: The key that `foo` that we didn't supply in the `set` command will not be touched. See **Set/Update/Delete** details for details on how to remove keys.
+Note: The key `foo` that we didn't supply in the `set` command will not be touched. See **Set/Update/Delete** details for details on how to remove keys.
 
 ### Get a session for a token
 
