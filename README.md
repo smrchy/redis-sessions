@@ -5,9 +5,11 @@
 
 [![Redis-Sessions](https://nodei.co/npm/redis-sessions.png?downloads=true&stars=true)](https://nodei.co/npm/redis-sessions/)
 
-This is a NodeJS module to keep sessions in a Redis datastore and add some useful methods.
+This is a Node.js module to keep sessions in a Redis datastore and add some useful methods.
 
-The main purpose of this module is to generalize sessions across application server platforms. We use nginx reverse proxy to route parts of a website to a NodeJS server and other parts could be Python, Ruby, .net, PHP, Coldfusion or Java servers. You can then use [rest-sessions](https://github.com/smrchy/rest-sessions) to access the same sessions on all app servers via a simple REST interface.
+The main purpose of this module is to generalize sessions across application server platforms. We use nginx reverse proxy to route parts of a website to a Node.js server and other parts could be Python, Ruby, .net, PHP, Coldfusion or Java servers. You can then use [rest-sessions](https://github.com/smrchy/rest-sessions) to access the same sessions on all app servers via a simple REST interface.
+
+If you use Express check out [https://www.npmjs.com/package/connect-redis-sessions](Connect-Redis-Sessions) for a ready to use middleware.
 
 ## Installation
 
@@ -42,7 +44,7 @@ With Redis being run on the same machine the test script (run via `npm test`) on
 
 See [rest-sessions](https://github.com/smrchy/rest-sessions).
 
-## Use in NodeJS
+## Use in Node.js
 
 ### Initialize redis-sessions
 
@@ -94,7 +96,15 @@ rs.create({
   });
 ```
 
-### Add some data to the session
+Notes: 
+
+* You might want to store this token in a cookie / localStorage / sessionStorage.
+* If you use Express check out [https://www.npmjs.com/package/connect-redis-sessions](Connect-Redis-Sessions).
+* As long as the `ttl` isn't reached this token can be used to get the session object for this user.
+* Remember that a user (`user1001` in this case) might have other sessions.  
+* If you want to limit the number of sessions a user might have you can use the `soid` (sessions of id) method to find other sessions of this user or the `killsoid` (Kill sessions of id) method to kill his other sessions first.
+
+### Update and add some more data to an existing session
 
 ```javascript
 rs.set({
@@ -127,6 +137,7 @@ rs.set({
   });
 ```
 
+Note: The key that `foo` that we didn't supply in the `set` command will not be touched. See **Set/Update/Delete** details for details on how to remove keys.
 
 ### Get a session for a token
 
@@ -140,8 +151,8 @@ rs.get({
 
     {  
       "id":"user1001",
-      "r": 1,  // The number of reads on this token
-      "w": 1,  // The number of writes on this token
+      "r": 2,  // The number of reads on this token
+      "w": 2,  // The number of writes on this token
       "idle": 21,  // The idle time in seconds.
       "ttl": 7200, // Timeout after 7200 idle time
       "d":
@@ -179,8 +190,8 @@ rs.set({
 
     {  
       "id":"user1001",
-      "r": 1,
-      "w": 2,
+      "r": 2,
+      "w": 3,
       "idle": 1,
       "ttl": 7200, 
       "d":
@@ -212,7 +223,7 @@ rs.kill({
   });
 ```
 
-Note: If {kill: 0} is returned the session was not found.
+Note: If `{kill: 0}` is returned the session was not found.
 
 
 ### Activity
@@ -336,13 +347,13 @@ rs.killall({app: rsapp},
 See https://github.com/smrchy/redis-sessions/blob/master/CHANGELOG.md
 
 
-## More NodeJS and Redis projects?
+## More Node.js and Redis projects?
 
-Check out my projects which are based on NodeJS and Redis as a datastore:
+Check out my projects which are based on Node.js and Redis as a datastore:
 
 ### [RSMQ: Really Simple Message Queue](https://github.com/smrchy/rsmq)
 
-If you run a Redis server and currently use Amazon SQS or a similar message queue you might as well use this fast little replacement. **Using a shared Redis server multiple NodeJS processes can send / receive messages.**
+If you run a Redis server and currently use Amazon SQS or a similar message queue you might as well use this fast little replacement. **Using a shared Redis server multiple Node.js processes can send / receive messages.**
 
 * Lightweight: **Just Redis**. Every client can send and receive messages via a shared Redis server. 
 * Guaranteed **delivery of a message to exactly one recipient** within a messages visibility timeout.
@@ -354,7 +365,7 @@ If you run a Redis server and currently use Amazon SQS or a similar message queu
 
 ### [Redis-Tagging](https://github.com/smrchy/redis-tagging)
 
-A NodeJS helper library to make tagging of items in any legacy database (SQL or NoSQL) easy and fast. Redis is used to store tag-item associations and to allow fast queries and paging over large sets of tagged items.
+A Node.js helper library to make tagging of items in any legacy database (SQL or NoSQL) easy and fast. Redis is used to store tag-item associations and to allow fast queries and paging over large sets of tagged items.
 
 * **Maintains order** of tagged items
 * **Unions** and **intersections** while maintaining the order
@@ -362,18 +373,6 @@ A NodeJS helper library to make tagging of items in any legacy database (SQL or 
 * **Fast paging** over results with `limit` and `offset`
 * Optional **RESTful interface** via [REST-tagging](https://github.com/smrchy/rest-tagging)
 * [Read more...](https://github.com/smrchy/redis-tagging)
-
-
-### [Redis-Sessions](https://github.com/smrchy/redis-sessions)
-
-This is a NodeJS module to keep sessions in a Redis datastore and add some useful methods.
-
-The main purpose of this module is to **generalize sessions across application server platforms**. We use nginx reverse proxy to route parts of a website to a NodeJS server and other parts could be Python, .net, PHP, Coldfusion or Java servers. You can then use [rest-sessions](https://github.com/smrchy/rest-sessions) to access the same sessions on all app server via a REST interface.
-
-* Standard features: Set, update, delete a single session
-* Advanced features: List / delete all sessions, all sessions of a single UserID
-* Activity in the last *n* seconds
-* [and more...](https://github.com/smrchy/redis-sessions)
 
 
 ## The MIT License (MIT)

@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.3.9
+
+* Fixed #14 - Typo in README.md example. Thanks @odirus and @codeName007
+
 ## 0.3.8
 
 * Removed debug message when wiping timed out sessions.
