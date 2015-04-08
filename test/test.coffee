@@ -105,7 +105,21 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
+
+		it 'Create a session with invalid data: Longer than 39 chars ip supplied', (done) ->
+			rs.create {app: app1, id:"user1", ip:"1234567890123456789012345678901234567890"}, (err, resp) ->
+				err.message.should.equal("Invalid ip format")
+				done()
+				return
+			return
 		
+		it 'Create a session with invalid data: zero length ip supplied', (done) ->
+			rs.create {app: app1, id:"user1", ip:""}, (err, resp) ->
+				err.message.should.equal("No ip supplied")
+				done()
+				return
+			return
+
 		it 'Create a session with invalid data: ttl too short', (done) ->
 			rs.create {app: app1, id:"user1", ip: "127.0.0.1", ttl: 4}, (err, resp) ->
 				err.message.should.equal("ttl must be a positive integer >= 10")
@@ -153,7 +167,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Create yet another session for user1 with an invalid `d` object: should return a token', (done) ->
-			rs.create {app: app1, id:"user1", ip: "127.0.0.2", ttl: 30, d:{"inv":[]}}, (err, resp) ->
+			rs.create {app: app1, id:"user1", ip: "2001:0000:1234:0000:0000:C1C0:ABCD:0876", ttl: 30, d:{"inv":[]}}, (err, resp) ->
 				should.not.exist(resp)
 				should.exist(err)
 				done()
@@ -161,7 +175,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Create yet another session for user1 with an invalid `d` object: should return a token', (done) ->
-			rs.create {app: app1, id:"user1", ip: "127.0.0.2", ttl: 30, d:{}}, (err, resp) ->
+			rs.create {app: app1, id:"user1", ip: "2001:0000:1234:0000:0000:C1C0:ABCD:0876", ttl: 30, d:{}}, (err, resp) ->
 				should.not.exist(resp)
 				should.exist(err)
 				done()

@@ -117,6 +117,26 @@
           done();
         });
       });
+      it('Create a session with invalid data: Longer than 39 chars ip supplied', function(done) {
+        rs.create({
+          app: app1,
+          id: "user1",
+          ip: "1234567890123456789012345678901234567890"
+        }, function(err, resp) {
+          err.message.should.equal("Invalid ip format");
+          done();
+        });
+      });
+      it('Create a session with invalid data: zero length ip supplied', function(done) {
+        rs.create({
+          app: app1,
+          id: "user1",
+          ip: ""
+        }, function(err, resp) {
+          err.message.should.equal("No ip supplied");
+          done();
+        });
+      });
       it('Create a session with invalid data: ttl too short', function(done) {
         rs.create({
           app: app1,
@@ -193,7 +213,7 @@
         rs.create({
           app: app1,
           id: "user1",
-          ip: "127.0.0.2",
+          ip: "2001:0000:1234:0000:0000:C1C0:ABCD:0876",
           ttl: 30,
           d: {
             "inv": []
@@ -208,7 +228,7 @@
         rs.create({
           app: app1,
           id: "user1",
-          ip: "127.0.0.2",
+          ip: "2001:0000:1234:0000:0000:C1C0:ABCD:0876",
           ttl: 30,
           d: {}
         }, function(err, resp) {
