@@ -529,7 +529,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
     RedisSessions.prototype._VALID = {
       app: /^([a-zA-Z0-9_-]){3,20}$/,
-      id: /^([a-zA-Z0-9_-]){1,64}$/,
+      id: /^([A-Za-z0-9_\-.@]){1,64}$/,
       ip: /^.{1,39}$/,
       token: /^([a-zA-Z0-9]){64}$/
     };
