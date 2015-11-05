@@ -10,11 +10,11 @@
 		"test": "mocha ./test/test.js"
 	},
 	"dependencies": {
-		"redis": "0.12.1",
+		"redis": "2.3.0",
 		"lodash": "3.6.0"
 	},
 	"optionalDependencies": {
-		"hiredis": "0.3.0"
+		"hiredis": "0.4.1"
 	},
 	"devDependencies": {
 		"mocha": "*",
