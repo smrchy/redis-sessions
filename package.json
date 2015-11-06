@@ -1,7 +1,7 @@
 {
     "name": "redis-sessions",
     "description": "An advanced session store for Redis",
-    "version": "0.5.1",
+    "version": "0.5.2",
     "author": "P. Liess <smrchy+npm@gmail.com>",
     "engines": {
 		"node": "> 0.10.20"
@@ -11,7 +11,7 @@
 	},
 	"dependencies": {
 		"redis": "2.3.0",
-		"lodash": "3.6.0"
+		"lodash": "3.10.1"
 	},
 	"optionalDependencies": {
 		"hiredis": "0.4.1"
