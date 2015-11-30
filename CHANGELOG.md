@@ -1,5 +1,22 @@
 # CHANGELOG
 
+
+## 0.5.3
+
+* Travis tests for Node 4.2 LTS
+
+## 0.5.2
+
+* Remove Travis tests for iojs. Added Travis tests for Node 5.0
+
+## 0.5.1
+
+* Remove Travis tests for Node 0.8.0
+
+## 0.5.0
+
+* Added Travis tests for Node 4.0
+
 ## 0.3.9
 
 * Fixed #14 - Typo in README.md example. Thanks @odirus and @codeName007
