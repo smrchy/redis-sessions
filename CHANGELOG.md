@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 1.0.0
+
+* Use lodash 4.0.0
 
 ## 0.5.3
 
