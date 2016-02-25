@@ -74,11 +74,13 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
           }
         };
       })(this));
-      wipe = o.wipe || 600;
-      if (wipe < 10) {
-        wipe = 10;
+      if (o.wipe !== 0) {
+        wipe = o.wipe || 600;
+        if (wipe < 10) {
+          wipe = 10;
+        }
+        setInterval(this._wipe, wipe * 1000);
       }
-      setInterval(this._wipe, wipe * 1000);
     }
 
     RedisSessions.prototype.activity = function(options, cb) {

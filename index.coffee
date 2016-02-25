@@ -62,11 +62,11 @@ class RedisSessions extends EventEmitter
 				@emit( "error" )
 			return
 
-
-		wipe = o.wipe or 600
-		if wipe < 10
-			wipe = 10
-		setInterval(@_wipe, wipe * 1000)
+		if o.wipe isnt 0
+			wipe = o.wipe or 600
+			if wipe < 10
+				wipe = 10
+			setInterval(@_wipe, wipe * 1000)
 
 
 	# ## Activity

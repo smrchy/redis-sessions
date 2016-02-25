@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.0.1
+
+* Modified docs to make it clear that TTL is specified in seconds
+* Introduced `wipe: 0` in options to disable wiping of expired sessions
+
 ## 1.0.0
 
 * Use lodash 4.0.0

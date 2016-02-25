@@ -59,7 +59,7 @@ RedisSessions = require("redis-sessions");
 // `host`, *optional* Default: "127.0.0.1". The Redis host.
 // `options`, *optional* Default: {}. Additional options. See: https://github.com/mranney/node_redis#rediscreateclientport-host-options
 // `namespace`: *optional* Default: "rs". The namespace prefix for all Redis keys used by this module.
-// `wipe`: *optional* Default: 600. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
+// `wipe`: *optional* Default: 600. The interval in seconds after which expired sessions are wiped. Only values `0` or greater than `10` allowed. Set to `0` to disable.
 // `client`: *optional* An external RedisClient object which will be used for the connection.
 //
 rs = new RedisSessions();
@@ -74,7 +74,7 @@ Parameters:
 * `app` (String) The app id (namespace) for this session.
 * `id` (String) The user id of this user. Note: There can be multiple sessions for the same user id. If the user uses multiple client devices.
 * `ip` (String) IP address of the user. This is used to show all ips from which the user is logged in.
-* `ttl` (Number) *optional* The "Time-To-Live" for the session. Default: 7200.
+* `ttl` (Number) *optional* The "Time-To-Live" for the session in seconds. Default: 7200.
 * `d` (Object) *optional* Additional data to set for this sessions. (see the "set" method)
 
 ```javascript
@@ -155,7 +155,7 @@ rs.get({
       "r": 2,  // The number of reads on this token
       "w": 2,  // The number of writes on this token
       "idle": 21,  // The idle time in seconds.
-      "ttl": 7200, // Timeout after 7200 idle time
+      "ttl": 7200, // Timeout after 7200 seconds idle time
       "d":
          {
           "foo": "bar",
