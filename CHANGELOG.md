@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.0.3
+
+* Fixed typo
+
 ## 1.0.2
 
 * Fixed possible memory leak in wipe functions

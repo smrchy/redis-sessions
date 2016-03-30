@@ -34,6 +34,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       if (o == null) {
         o = {};
       }
+      this._wipe = bind(this._wipe, this);
       this._returnSessions = bind(this._returnSessions, this);
       this._initErrors = bind(this._initErrors, this);
       this._handleError = bind(this._handleError, this);
