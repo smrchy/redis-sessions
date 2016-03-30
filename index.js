@@ -34,7 +34,6 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
       if (o == null) {
         o = {};
       }
-      this._wipe = bind(this._wipe, this);
       this._returnSessions = bind(this._returnSessions, this);
       this._initErrors = bind(this._initErrors, this);
       this._handleError = bind(this._handleError, this);
@@ -623,25 +622,23 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
     };
 
     RedisSessions.prototype._wipe = function() {
-      this.redis.zrangebyscore(this.redisns + "SESSIONS", "-inf", this._now(), (function(_this) {
-        return function(err, resp) {
-          if (err) {
-            return;
-          }
-          if (resp.length) {
-            _.each(resp, function(e) {
-              var options;
-              e = e.split(':');
-              options = {
-                app: e[0],
-                token: e[1],
-                id: e[2]
-              };
-              _this._kill(options, function() {});
-            });
-          }
-        };
-      })(this));
+      var that;
+      that = this;
+      this.redis.zrangebyscore(this.redisns + "SESSIONS", "-inf", this._now(), function(err, resp) {
+        if (!err && resp.length) {
+          _.each(resp, function(e) {
+            var options;
+            e = e.split(':');
+            options = {
+              app: e[0],
+              token: e[1],
+              id: e[2]
+            };
+            that._kill(options, function() {});
+          });
+          return;
+        }
+      });
     };
 
     RedisSessions.prototype.ERRORS = {

@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.0.2
+
+* Fixed possible memory leak in wipe functions
+
 ## 1.0.1
 
 * Modified docs to make it clear that TTL is specified in seconds

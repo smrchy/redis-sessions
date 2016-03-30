@@ -622,19 +622,19 @@ class RedisSessions extends EventEmitter
 	# Wipe old sessions
 	#
 	# Called by internal housekeeping every `options.wipe` seconds
-	_wipe: =>
-		@redis.zrangebyscore "#{@redisns}SESSIONS", "-inf", @_now(), (err, resp) =>
-			if err
-				return
-			if resp.length
-				_.each resp, (e) =>
+	_wipe: ->
+		that = @
+		@redis.zrangebyscore "#{@redisns}SESSIONS", "-inf", @_now(), (err, resp) ->
+			if not err and resp.length
+				_.each resp, (e) ->
 					e = e.split(':')
 					options =
 						app: e[0]
 						token: e[1]
 						id: e[2]
-					@_kill(options, ->)
+					that._kill(options, ->)
 					return
+				return
 			return
 		return
 
