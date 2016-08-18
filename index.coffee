@@ -370,6 +370,16 @@ class RedisSessions extends EventEmitter
 			return
 		return
 
+	# ## Quit
+	#
+	# Quit the Redis connection
+	# This is needed if Redis-Session is used with AWS Lambda.
+	quit: (cb) =>
+		@redis.quit()
+		cb(null, true)
+		return
+
+
 	# ## Set
 	#
 	# Set/Update/Delete custom data for a single session.  

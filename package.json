@@ -1,24 +1,25 @@
 {
-    "name": "redis-sessions",
-    "description": "An advanced session store for Redis",
-    "version": "1.0.4",
-    "author": "P. Liess <smrchy+npm@gmail.com>",
-    "engines": {
+	"name": "redis-sessions",
+	"description": "An advanced session store for Redis",
+	"version": "1.0.5",
+	"license": "MIT",
+	"author": "P. Liess <smrchy+npm@gmail.com>",
+	"engines": {
 		"node": "> 0.10.20"
 	},
 	"scripts": {
 		"test": "mocha ./test/test.js"
 	},
 	"dependencies": {
-		"redis": "^2.6.0-1",
+		"redis": "^2.6.2",
 		"lodash": "^4.x"
 	},
 	"optionalDependencies": {
 		"hiredis": "0.4.1"
 	},
 	"devDependencies": {
-		"mocha": "2.3.4",
-		"should": "8.2.0",
+		"mocha": "3.0.2 ",
+		"should": "11.1.0",
 		"async": "*"
 	},
 	"keywords": [
@@ -32,5 +33,4 @@
 		"type": "git",
 		"url": "http://github.com/smrchy/redis-sessions.git"
 	}
-
 }

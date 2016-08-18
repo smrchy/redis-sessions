@@ -575,6 +575,13 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
+		
+
+		it 'Issue the Quit Command.', (done) ->
+			rs.quit (err, resp) ->
+				resp.should.equal(true)
+				done()
+				return
+			return
 		return
-	
 	return

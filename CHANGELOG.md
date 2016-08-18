@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 1.0.5
+
+* Added `quit` method for use with AWS Lambda
+
+## 1.0.4 
+
+* Upped Redis dependencies
+
 ## 1.0.3
 
 * Fixed typo
