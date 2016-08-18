@@ -340,9 +340,8 @@ RedisSessions = (function(superClass) {
     })(this));
   };
 
-  RedisSessions.prototype.quit = function(cb) {
+  RedisSessions.prototype.quit = function() {
     this.redis.quit();
-    cb(null, true);
   };
 
   RedisSessions.prototype.set = function(options, cb) {

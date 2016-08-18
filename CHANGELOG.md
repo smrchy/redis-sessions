@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.0.6
+
+* Removed callback for `quit` method.
+
 ## 1.0.5
 
 * Added `quit` method for use with AWS Lambda

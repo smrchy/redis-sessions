@@ -782,10 +782,8 @@ describe('Redis-Sessions Test', function() {
       });
     });
     it('Issue the Quit Command.', function(done) {
-      rs.quit(function(err, resp) {
-        resp.should.equal(true);
-        done();
-      });
+      rs.quit();
+      done();
     });
   });
 });

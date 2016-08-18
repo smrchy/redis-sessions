@@ -1,7 +1,7 @@
 {
 	"name": "redis-sessions",
 	"description": "An advanced session store for Redis",
-	"version": "1.0.5",
+	"version": "1.0.6",
 	"license": "MIT",
 	"author": "P. Liess <smrchy+npm@gmail.com>",
 	"engines": {
