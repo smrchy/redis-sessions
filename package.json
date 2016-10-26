@@ -1,36 +1,36 @@
 {
-	"name": "redis-sessions",
-	"description": "An advanced session store for Redis",
-	"version": "1.0.6",
-	"license": "MIT",
-	"author": "P. Liess <smrchy+npm@gmail.com>",
-	"engines": {
-		"node": "> 0.10.20"
-	},
-	"scripts": {
-		"test": "mocha ./test/test.js"
-	},
-	"dependencies": {
-		"redis": "^2.x",
-		"lodash": "^4.x"
-	},
-	"optionalDependencies": {
-		"hiredis": "^0.5.x"
-	},
-	"devDependencies": {
-		"mocha": "3.0.2 ",
-		"should": "11.1.0",
-		"async": "*"
-	},
-	"keywords": [
-		"sessions",
-		"redis",
-		"session",
-		"users",
-		"activity"
-	],
-	"repository" : {
-		"type": "git",
-		"url": "http://github.com/smrchy/redis-sessions.git"
-	}
+  "name": "redis-sessions",
+  "description": "An advanced session store for Redis",
+  "version": "1.1.0",
+  "license": "MIT",
+  "author": "P. Liess <smrchy+npm@gmail.com>",
+  "engines": {
+    "node": "> 0.10.20"
+  },
+  "scripts": {
+    "test": "mocha ./test/test.js"
+  },
+  "dependencies": {
+    "redis": "^2.x",
+    "lodash": "^4.x"
+  },
+  "optionalDependencies": {
+    "hiredis": "^0.5.x"
+  },
+  "devDependencies": {
+    "mocha": "3.0.2 ",
+    "should": "11.1.0",
+    "async": "*"
+  },
+  "keywords": [
+    "sessions",
+    "redis",
+    "session",
+    "users",
+    "activity"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/smrchy/redis-sessions.git"
+  }
 }
