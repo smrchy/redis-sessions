@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.1.0
+
+* Travis tests for Node 4 and 6. Should fix Travis build errors.
+* Added `ping` method.
+
 ## 1.0.6
 
 * Removed callback for `quit` method.

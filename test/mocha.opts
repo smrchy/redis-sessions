@@ -1,3 +1,3 @@
 --bail
---slow 10
+--slow 5
 --reporter spec

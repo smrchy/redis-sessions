@@ -31,6 +31,13 @@ describe 'Redis-Sessions Test', ->
 		return
 
 	describe 'GET: Part 1', ->
+		it 'Ping the redis server', (done) ->
+			rs.ping (err, resp) ->
+				resp.should.equal("PONG")
+				done()
+				return
+			return
+
 		it 'Get a Session with invalid app format: no app supplied', (done) ->
 			rs.get {}, (err, resp) ->
 				err.message.should.equal("No app supplied")

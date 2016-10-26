@@ -343,6 +343,24 @@ rs.killall({app: rsapp},
   });
 ```
 
+### Ping
+
+Ping the redis server
+
+```javascript
+
+rs.ping(function(err, resp) {
+    /*
+    resp contains the result:
+
+    "PONG"
+    */  
+});
+```
+
+
+
+
 ## CHANGELOG
 
 See https://github.com/smrchy/redis-sessions/blob/master/CHANGELOG.md

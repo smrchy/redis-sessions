@@ -370,6 +370,13 @@ class RedisSessions extends EventEmitter
 			return
 		return
 
+	# ## Ping
+	#
+	# Ping the Redis server
+	ping: (cb) =>
+		@redis.ping cb
+		return
+
 	# ## Quit
 	#
 	# Quit the Redis connection
