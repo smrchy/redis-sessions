@@ -53,6 +53,8 @@ RedisSessions = (function(superClass) {
     this.redisns = this.redisns + ":";
     if (((ref = o.client) != null ? (ref1 = ref.constructor) != null ? ref1.name : void 0 : void 0) === "RedisClient") {
       this.redis = o.client;
+    } else if (o.options && o.options.url) {
+      this.redis = RedisInst.createClient(o.options);
     } else {
       this.redis = RedisInst.createClient(o.port || 6379, o.host || "127.0.0.1", o.options || {});
     }
