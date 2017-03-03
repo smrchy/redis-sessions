@@ -43,6 +43,8 @@ class RedisSessions extends EventEmitter
 
 		if o.client?.constructor?.name is "RedisClient"
 			@redis = o.client
+		else if o.options and o.options.url
+			@redis = RedisInst.createClient(o.options)
 		else
 			@redis = RedisInst.createClient(o.port or 6379, o.host or "127.0.0.1", o.options or {})
 	

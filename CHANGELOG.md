@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.2.0
+
+* Allow options.url with Redis options object. #31 Thanks to @cristiangraz
+
 ## 1.1.0
 
 * Travis tests for Node 4 and 6. Should fix Travis build errors.
