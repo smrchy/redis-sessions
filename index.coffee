@@ -593,7 +593,7 @@ class RedisSessions extends EventEmitter
 	# Validation regex used by _validate
 	_VALID:
 		app:	/^([a-zA-Z0-9_-]){3,20}$/
-		id:		/^([a-zA-Z0-9_-]){1,64}$/
+		id:		/^(.*?){1,128}$/
 		ip:		/^.{1,39}$/
 		token:	/^([a-zA-Z0-9]){64}$/
 

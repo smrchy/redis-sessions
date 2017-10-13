@@ -325,10 +325,29 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
+
+		it 'Create a session with utf8 (딸기 필드 영원히) chars for the id: should return a token', (done) ->
+			rs.create {app: app1, id:"딸기 필드 영원히", ip: "127.0.0.1", ttl: 30}, (err, resp) ->
+				should.not.exist(err)
+				rs.get {app: app1, token: resp.token}, (err, resp2) ->
+					should.not.exist(err)
+					resp2.id.should.equal("딸기 필드 영원히")
+					done()
+					return
+				return
+			return
+
+		it 'Create a session with email for the id: should return a token', (done) ->
+			rs.create {app: app1, id:"abcde1-284h1ah37@someDomain-with-dash.co.uk", ip: "127.0.0.1", ttl: 30}, (err, resp) ->
+				should.not.exist(err)
+				rs.get {app: app1, token: resp.token}, (err, resp2) ->
+					should.not.exist(err)
+					resp2.id.should.equal("abcde1-284h1ah37@someDomain-with-dash.co.uk")
+					done()
+					return
+				return
+			return
 		return
-
-
-
 
 	describe 'GET: Part 2', ->
 		it 'Get the Session for token1: should work', ( done ) ->
@@ -355,12 +374,12 @@ describe 'Redis-Sessions Test', ->
 			return
 
 
-		it 'Sessions of App should return 4 users', (done) ->
+		it 'Sessions of App should return 6 users', (done) ->
 			rs.soapp {app: app1, dt: 60}, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('sessions')
-				resp.sessions.length.should.equal(4)
+				resp.sessions.length.should.equal(6)
 				done()
 				return
 			return
@@ -384,12 +403,12 @@ describe 'Redis-Sessions Test', ->
 				return
 			return
 
-		it 'Activity for app1 should show 2 users still', (done) ->
+		it 'Activity for app1 should show 4 users still', (done) ->
 			rs.activity {app: app1, dt: 60}, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('activity')
-				resp.activity.should.equal(2)
+				resp.activity.should.equal(4)
 				done()
 				return
 			return

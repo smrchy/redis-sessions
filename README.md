@@ -34,7 +34,7 @@ If you use Express check out [https://www.npmjs.com/package/connect-redis-sessio
 
 ## Performance
 
-With Redis being run on the same machine the test script (run via `npm test`) on a 2011 iMac:
+With Redis running on the same machine as the test script (run via `npm test`) on a 2011 iMac:
 
 * Creates 1000 sessions in around 170ms.
 * Gets those 1000 sessions and validates them in around 155ms.

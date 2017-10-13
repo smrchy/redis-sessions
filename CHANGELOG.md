@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.3.0
+
+* Issue #33 Allow up to 128 charactes (from 64) and all UTF-8 characters as `id`. This lets you store for example emails as id.
+* Travis tests for Node 8 added.
+
 ## 1.2.0
 
 * Allow options.url with Redis options object. #31 Thanks to @cristiangraz
