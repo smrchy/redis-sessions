@@ -11,7 +11,7 @@
     "test": "node --expose-internals node_modules/.bin/mocha ./test/test.js"
   },
   "dependencies": {
-    "lodash": "^4.x",
+    "lodash": "^4.17.11",
     "redis": "^2.x"
   },
   "optionalDependencies": {
