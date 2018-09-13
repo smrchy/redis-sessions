@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2.0.2
+
+* Updated lodash to ^4.17.11
+
 ## 2.0.0
 
 * Added the optional `no_resave` parameter for the `create` method. (see docs)
