@@ -11,13 +11,14 @@
     "test": "node --expose-internals node_modules/.bin/mocha ./test/test.js"
   },
   "dependencies": {
-    "redis": "^2.x",
-    "lodash": "^4.x"
+    "lodash": "^4.x",
+    "redis": "^2.x"
   },
   "optionalDependencies": {
     "hiredis": "^0.5.x"
   },
   "devDependencies": {
+    "coffeescript": "^1.12.7",
     "async": "^2.x",
     "mocha": "^5.2.0",
     "should": "11.1.0"
