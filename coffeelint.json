@@ -1,0 +1,7 @@
+{
+	"no_implicit_braces": false,
+	"max_line_length": {
+		"level": "ignore"
+	},
+	"cyclomatic_complexity": false 
+}

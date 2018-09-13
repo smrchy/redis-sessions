@@ -8,7 +8,7 @@
     "node": "> 0.10.20"
   },
   "scripts": {
-    "test": "mocha ./test/test.js"
+    "test": "node --expose-internals node_modules/.bin/mocha ./test/test.js"
   },
   "dependencies": {
     "redis": "^2.x",
@@ -18,9 +18,9 @@
     "hiredis": "^0.5.x"
   },
   "devDependencies": {
-    "mocha": "3.0.2 ",
-    "should": "11.1.0",
-    "async": "*"
+    "async": "^2.x",
+    "mocha": "^5.2.0",
+    "should": "11.1.0"
   },
   "keywords": [
     "sessions",
