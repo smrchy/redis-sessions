@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2.0.0
+
+* Added the optional `no_resave` parameter for the `create` method. (see docs)
+* Updated dependencies, Cleaned up code.
+* Added higher timeouts for mocha tests to test the `no_resave` functionality.
+* Added Travis tests for Node 10
+
 ## 1.3.0
 
 * Issue #33 Allow up to 128 charactes (from 64) and all UTF-8 characters as `id`. This lets you store for example emails as id.
