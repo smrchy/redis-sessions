@@ -19,7 +19,7 @@ If you use Express check out [https://www.npmjs.com/package/connect-redis-sessio
 
 * Every session belongs to an app (e.g. `webapp`, `app_cust123`).
 * `create`: A session is created by supplying the app and an id (usually the unique id of the user). A token will be returned.
-* `get`: A session is queried with the app and token.
+* `get`: A session is queried with the app and token. This will refresh the `ttl` (timeout) of a session.
 * `set`: Additional data (key/value) can be stored in the session.
 * `kill`: A session can be killed with the app and token.
 * `killall`: All sessions of an app can be killed.
@@ -76,6 +76,7 @@ Parameters:
 * `ip` (String) IP address of the user. This is used to show all ips from which the user is logged in.
 * `ttl` (Number) *optional* The "Time-To-Live" for the session in seconds. Default: 7200.
 * `d` (Object) *optional* Additional data to set for this sessions. (see the "set" method)
+* `no_resave` (Boolean) *optional* If set to `true` the session will not be refreshed on session use. Instead it will run out exactly after the defined `ttl`. Default: `false`
 
 ```javascript
 

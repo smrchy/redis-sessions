@@ -1,7 +1,7 @@
 _ = require "lodash"
 should = require "should"
 async = require "async"
-RedisSessions = require "../index" 
+RedisSessions = require "../index"
 
 describe 'Redis-Sessions Test', ->
 	rs = null
@@ -12,6 +12,7 @@ describe 'Redis-Sessions Test', ->
 	token2 = null
 	token3 = null
 	token4 = null
+	token5 = null
 	bulksessions = []
 
 
@@ -20,7 +21,8 @@ describe 'Redis-Sessions Test', ->
 		return
 
 	after (done) ->
-		done()		
+		done()
+		process.exit(0)
 		return
 	
 
@@ -46,42 +48,42 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Get a Session with invalid app format: too short', (done) ->
-			rs.get {app: "a"}, (err, resp) ->
+			rs.get { app: "a" }, (err, resp) ->
 				err.message.should.equal("Invalid app format")
 				done()
 				return
 			return
 
 		it 'Get a Session with invalid token format: no token at all', (done) ->
-			rs.get {app: app1}, (err, resp) ->
+			rs.get { app: app1 }, (err, resp) ->
 				err.message.should.equal("No token supplied")
 				done()
 				return
 			return
 
 		it 'Get a Session with invalid token format: token shorter than 64 chars', (done) ->
-			rs.get {app: app1, token: "lsdkjfslkfjsldfkj"}, (err, resp) ->
+			rs.get { app: app1, token: "lsdkjfslkfjsldfkj" }, (err, resp) ->
 				err.message.should.equal("Invalid token format")
 				done()
 				return
 			return
 
 		it 'Get a Session with invalid token format: token longer than 64 chars', (done) ->
-			rs.get {app: app1, token: "0123456789012345678901234567890123456789012345678901234567890123456789"}, (err, resp) ->
+			rs.get { app: app1, token: "0123456789012345678901234567890123456789012345678901234567890123456789" }, (err, resp) ->
 				err.message.should.equal("Invalid token format")
 				done()
 				return
 			return
 
 		it 'Get a Session with invalid token format: token with invalid character', (done) ->
-			rs.get {app: app1, token: "!123456789012345678901234567890123456789012345678901234567891234"}, (err, resp) ->
+			rs.get { app: app1, token: "!123456789012345678901234567890123456789012345678901234567891234" }, (err, resp) ->
 				err.message.should.equal("Invalid token format")
 				done()
 				return
 			return
 		
 		it 'Get a Session with valid token format but token should not exist', (done) ->
-			rs.get {app: app1, token: "0123456789012345678901234567890123456789012345678901234567891234"}, (err, resp) ->
+			rs.get { app: app1, token: "0123456789012345678901234567890123456789012345678901234567891234" }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
 				resp.should.not.have.keys('id')
@@ -100,42 +102,42 @@ describe 'Redis-Sessions Test', ->
 			return
 		
 		it 'Create a session with invalid data: no id supplied', (done) ->
-			rs.create {app: app1}, (err, resp) ->
+			rs.create { app: app1 }, (err, resp) ->
 				err.message.should.equal("No id supplied")
 				done()
 				return
 			return
 		
 		it 'Create a session with invalid data: no ip supplied', (done) ->
-			rs.create {app: app1, id:"user1"}, (err, resp) ->
+			rs.create { app: app1, id: "user1" }, (err, resp) ->
 				err.message.should.equal("No ip supplied")
 				done()
 				return
 			return
 
 		it 'Create a session with invalid data: Longer than 39 chars ip supplied', (done) ->
-			rs.create {app: app1, id:"user1", ip:"1234567890123456789012345678901234567890"}, (err, resp) ->
+			rs.create { app: app1, id: "user1", ip: "1234567890123456789012345678901234567890" }, (err, resp) ->
 				err.message.should.equal("Invalid ip format")
 				done()
 				return
 			return
 		
 		it 'Create a session with invalid data: zero length ip supplied', (done) ->
-			rs.create {app: app1, id:"user1", ip:""}, (err, resp) ->
+			rs.create { app: app1, id: "user1", ip: "" }, (err, resp) ->
 				err.message.should.equal("No ip supplied")
 				done()
 				return
 			return
 
 		it 'Create a session with invalid data: ttl too short', (done) ->
-			rs.create {app: app1, id:"user1", ip: "127.0.0.1", ttl: 4}, (err, resp) ->
+			rs.create { app: app1, id: "user1", ip: "127.0.0.1", ttl: 4 }, (err, resp) ->
 				err.message.should.equal("ttl must be a positive integer >= 10")
 				done()
 				return
 			return
 		
 		it 'Create a session with valid data: should return a token', (done) ->
-			rs.create {app: app1, id:"user1", ip: "127.0.0.1", ttl: 30}, (err, resp) ->
+			rs.create { app: app1, id: "user1", ip: "127.0.0.1", ttl: 30 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('token')
@@ -145,7 +147,7 @@ describe 'Redis-Sessions Test', ->
 			return
 		
 		it 'Activity should show 1 user', (done) ->
-			rs.activity {app: app1, dt: 60}, (err, resp) ->
+			rs.activity { app: app1, dt: 60 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('activity')
@@ -155,7 +157,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Create another session for user1: should return a token', (done) ->
-			rs.create {app: app1, id:"user1", ip: "127.0.0.2", ttl: 30}, (err, resp) ->
+			rs.create { app: app1, id: "user1", ip: "127.0.0.2", ttl: 30 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('token')
@@ -164,7 +166,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Create yet another session for user1 with a `d` object: should return a token', (done) ->
-			rs.create {app: app1, id:"user1", ip: "127.0.0.2", ttl: 30, d:{"foo":"bar","nu":null,"hi":123,"lo":-123,"boo":true,"boo2":false}}, (err, resp) ->
+			rs.create { app: app1, id: "user1", ip: "127.0.0.2", ttl: 30, d: { "foo": "bar", "nu": null, "hi": 123, "lo": -123, "boo": true, "boo2": false } }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('token')
@@ -174,7 +176,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Create yet another session for user1 with an invalid `d` object: should return a token', (done) ->
-			rs.create {app: app1, id:"user1", ip: "2001:0000:1234:0000:0000:C1C0:ABCD:0876", ttl: 30, d:{"inv":[]}}, (err, resp) ->
+			rs.create { app: app1, id: "user1", ip: "2001:0000:1234:0000:0000:C1C0:ABCD:0876", ttl: 30, d: { "inv": [] } }, (err, resp) ->
 				should.not.exist(resp)
 				should.exist(err)
 				done()
@@ -182,7 +184,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Create yet another session for user1 with an invalid `d` object: should return a token', (done) ->
-			rs.create {app: app1, id:"user1", ip: "2001:0000:1234:0000:0000:C1C0:ABCD:0876", ttl: 30, d:{}}, (err, resp) ->
+			rs.create { app: app1, id: "user1", ip: "2001:0000:1234:0000:0000:C1C0:ABCD:0876", ttl: 30, d: {} }, (err, resp) ->
 				should.not.exist(resp)
 				should.exist(err)
 				done()
@@ -190,7 +192,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Activity should STILL show 1 user', (done) ->
-			rs.activity {app: app1, dt: 60}, (err, resp) ->
+			rs.activity { app: app1, dt: 60 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('activity')
@@ -200,7 +202,7 @@ describe 'Redis-Sessions Test', ->
 			return
 		
 		it 'Create another session with valid data: should return a token', (done) ->
-			rs.create {app: app1, id:"user2", ip: "127.0.0.1", ttl: 10}, (err, resp) ->
+			rs.create { app: app1, id: "user2", ip: "127.0.0.1", ttl: 10 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('token')
@@ -210,7 +212,7 @@ describe 'Redis-Sessions Test', ->
 			return
 		
 		it 'Activity should show 2 users', (done) ->
-			rs.activity {app: app1, dt: 60}, (err, resp) ->
+			rs.activity { app: app1, dt: 60 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('activity')
@@ -220,7 +222,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Sessions of App should return 4 users', (done) ->
-			rs.soapp {app: app1, dt: 60}, (err, resp) ->
+			rs.soapp { app: app1, dt: 60 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('sessions')
@@ -228,10 +230,18 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
-
+		it "Create a session with `no_resave` and wait 6s", (done) ->
+			rs.create { app: app1, id: "user5noresave", ip: "127.0.0.1", ttl: 10, no_resave: true }, (err, resp) ->
+				should.not.exist(err)
+				should.exist(resp)
+				resp.should.have.keys('token')
+				token5 = resp.token
+				setTimeout(done, 6000)
+				return
+			return
 		
 		it 'Create a session for another app with valid data: should return a token', (done) ->
-			rs.create {app: app2, id:"user1", ip: "127.0.0.1", ttl: 30}, (err, resp) ->
+			rs.create { app: app2, id: "user1", ip: "127.0.0.1", ttl: 30 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('token')
@@ -241,7 +251,7 @@ describe 'Redis-Sessions Test', ->
 			return
 		
 		it 'Activity should show 1 user', (done) ->
-			rs.activity {app: app2, dt: 60}, (err, resp) ->
+			rs.activity { app: app2, dt: 60 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('activity')
@@ -253,18 +263,17 @@ describe 'Redis-Sessions Test', ->
 		it 'Create 1000 sessions for app2: succeed', (done) ->
 			pq = []
 			for i in [0...1000]
-				pq.push({app:app2, id: "bulkuser_" + i, ip:"127.0.0.1"})
+				pq.push({ app: app2, id: "bulkuser_" + i, ip: "127.0.0.1" })
 			async.map pq, rs.create, (err, resp) ->
 				for e in resp
 					e.should.have.keys('token')
 					bulksessions.push(e.token)
-					e.token.length.should.equal(64)
 				done()
 				return
 			return
 		
 		it 'Activity should show 1001 user', (done) ->
-			rs.activity {app: app2, dt: 60}, (err, resp) ->
+			rs.activity { app: app2, dt: 60 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('activity')
@@ -275,19 +284,19 @@ describe 'Redis-Sessions Test', ->
 
 		it 'Get 1000 sessions for app2: succeed', (done) ->
 			pq = []
-			for e,i in bulksessions
-				pq.push({app:app2, token: e})
+			for e, i in bulksessions
+				pq.push({ app: app2, token: e })
 			async.map pq, rs.get, (err, resp) ->
 				resp.length.should.equal(1000)
-				for e,i in resp
-					e.should.have.keys('id','r','w','ttl','idle','ip')
+				for e, i in resp
+					e.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip')
 					e.id.should.equal("bulkuser_" + i)
 				done()
 				return
 			return
 
 		it 'Create a session for bulkuser_999 with valid data: should return a token', (done) ->
-			rs.create {app: app2, id:"bulkuser_999", ip: "127.0.0.2", ttl: 30}, (err, resp) ->
+			rs.create { app: app2, id: "bulkuser_999", ip: "127.0.0.2", ttl: 30 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('token')
@@ -296,7 +305,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Check if we have 2 sessions for bulkuser_999', (done) ->
-			rs.soid {app: app2, id: "bulkuser_999"}, (err, resp) ->
+			rs.soid { app: app2, id: "bulkuser_999" }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('sessions')
@@ -307,7 +316,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Remove those 2 sessions for bulkuser_999', (done) ->
-			rs.killsoid {app: app2, id: "bulkuser_999"}, (err, resp) ->
+			rs.killsoid { app: app2, id: "bulkuser_999" }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('kill')
@@ -317,7 +326,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Check if we have still have sessions for bulkuser_999: should return 0', (done) ->
-			rs.soid {app: app2, id: "bulkuser_999"}, (err, resp) ->
+			rs.soid { app: app2, id: "bulkuser_999" }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('sessions')
@@ -327,9 +336,9 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Create a session with utf8 (딸기 필드 영원히) chars for the id: should return a token', (done) ->
-			rs.create {app: app1, id:"딸기 필드 영원히", ip: "127.0.0.1", ttl: 30}, (err, resp) ->
+			rs.create { app: app1, id: "딸기 필드 영원히", ip: "127.0.0.1", ttl: 30 }, (err, resp) ->
 				should.not.exist(err)
-				rs.get {app: app1, token: resp.token}, (err, resp2) ->
+				rs.get { app: app1, token: resp.token }, (err, resp2) ->
 					should.not.exist(err)
 					resp2.id.should.equal("딸기 필드 영원히")
 					done()
@@ -338,9 +347,9 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Create a session with email for the id: should return a token', (done) ->
-			rs.create {app: app1, id:"abcde1-284h1ah37@someDomain-with-dash.co.uk", ip: "127.0.0.1", ttl: 30}, (err, resp) ->
+			rs.create { app: app1, id: "abcde1-284h1ah37@someDomain-with-dash.co.uk", ip: "127.0.0.1", ttl: 30 }, (err, resp) ->
 				should.not.exist(err)
-				rs.get {app: app1, token: resp.token}, (err, resp2) ->
+				rs.get { app: app1, token: resp.token }, (err, resp2) ->
 					should.not.exist(err)
 					resp2.id.should.equal("abcde1-284h1ah37@someDomain-with-dash.co.uk")
 					done()
@@ -351,10 +360,10 @@ describe 'Redis-Sessions Test', ->
 
 	describe 'GET: Part 2', ->
 		it 'Get the Session for token1: should work', ( done ) ->
-			rs.get {app: app1, token: token1}, (err, resp) ->
+			rs.get { app: app1, token: token1 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
-				resp.should.have.keys('id','r','w','ttl','idle','ip')
+				resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip')
 				resp.id.should.equal("user1")
 				resp.ttl.should.equal(30)
 				done()
@@ -362,10 +371,10 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Get the Session for token1 again: should work', ( done ) ->
-			rs.get {app: app1, token: token1}, (err, resp) ->
+			rs.get { app: app1, token: token1 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
-				resp.should.have.keys('id','r','w','ttl','idle','ip')
+				resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip')
 				resp.id.should.equal("user1")
 				resp.ttl.should.equal(30)
 				resp.r.should.equal(2)
@@ -374,18 +383,48 @@ describe 'Redis-Sessions Test', ->
 			return
 
 
-		it 'Sessions of App should return 6 users', (done) ->
-			rs.soapp {app: app1, dt: 60}, (err, resp) ->
+		it 'Get the Session for token5: should nave `no_resave` parameter set. Wait 6 seconds', ( done ) ->
+			rs.get { app: app1, token: token5 }, (err, resp) ->
+				should.not.exist(err)
+				resp.should.be.an.Object
+				resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip', 'no_resave')
+				resp.id.should.equal("user5noresave")
+				resp.ttl.should.be.below(5)
+				resp.idle.should.be.above(4)
+				resp.r.should.equal(1)
+				resp.no_resave.should.equal(true)
+				setTimeout(done, 6000)
+				return
+			return
+
+		it 'Get the Session for token2: Should be gone', ( done ) ->
+			rs.get { app: app1, token: token2 }, (err, resp) ->
+				resp.should.be.empty()
+				done()
+				return
+			return
+
+		it 'Get the Session for token5: should no longer be there', ( done ) ->
+			rs.get { app: app1, token: token5 }, (err, resp) ->
+				should.not.exist(err)
+				resp.should.be.an.Object
+				resp.should.be.empty()
+				done()
+				return
+			return
+
+		it 'Sessions of App should return 5 users', (done) ->
+			rs.soapp { app: app1, dt: 60 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('sessions')
-				resp.sessions.length.should.equal(6)
+				resp.sessions.length.should.equal(5)
 				done()
 				return
 			return
 
 		it 'Kill the Session for token1: should work', ( done ) ->
-			rs.kill {app: app1, token: token1}, (err, resp) ->
+			rs.kill { app: app1, token: token1 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
 				resp.should.have.keys('kill')
@@ -395,7 +434,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Get the Session for token1: should fail', ( done ) ->
-			rs.get {app: app1, token: token1}, (err, resp) ->
+			rs.get { app: app1, token: token1 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
 				resp.should.not.have.keys('id')
@@ -404,31 +443,20 @@ describe 'Redis-Sessions Test', ->
 			return
 
 		it 'Activity for app1 should show 4 users still', (done) ->
-			rs.activity {app: app1, dt: 60}, (err, resp) ->
+			rs.activity { app: app1, dt: 60 }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('activity')
-				resp.activity.should.equal(4)
+				resp.activity.should.equal(5)
 				done()
 				return
 			return
 
-
-		it 'Get the Session for token2', ( done ) ->
-			rs.get {app: app1, token: token2}, (err, resp) ->
-				should.not.exist(err)
-				resp.should.be.an.Object
-				resp.should.have.keys('id','r','w','ttl','idle','ip')
-				resp.id.should.equal("user2")
-				resp.ttl.should.equal(10)
-				done()
-				return
-			return
 		it 'Get the Session for token4', ( done ) ->
-			rs.get {app: app1, token: token4}, (err, resp) ->
+			rs.get { app: app1, token: token4 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
-				resp.should.have.keys('id','r','w','ttl','idle','ip','d')
+				resp.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip', 'd')
 				resp.id.should.equal("user1")
 				resp.ttl.should.equal(30)
 				resp.d.foo.should.equal("bar")
@@ -438,106 +466,107 @@ describe 'Redis-Sessions Test', ->
 		return
 	describe 'SET', ->
 		it 'Set some params for token1 with no d: should fail', ( done ) ->
-			rs.set {app: app1, token: token1}, (err, resp) ->
+			rs.set { app: app1, token: token1 }, (err, resp) ->
 				err.message.should.equal("No d supplied")
 				done()
 				return
 			return
 		it 'Set some params for token1 with d being an array', ( done ) ->
-			rs.set {app: app1, token: token1, d:[12,"bla"]}, (err, resp) ->
+			rs.set { app: app1, token: token1, d: [12, "bla"] }, (err, resp) ->
 				err.message.should.equal("d must be an object")
 				done()
 				return
 			return
 		it 'Set some params for token1 with d being a string: should fail', ( done ) ->
-			rs.set {app: app1, token: token1, d:"someString"}, (err, resp) ->
+			rs.set { app: app1, token: token1, d: "someString" }, (err, resp) ->
 				err.message.should.equal("d must be an object")
 				done()
 				return
 			return
 		it 'Set some params for token1 with forbidden type (array): should fail', ( done ) ->
-			rs.set {app: app1, token: token1, d:{arr:[1,2,3]}}, (err, resp) ->
+			rs.set { app: app1, token: token1, d: { arr: [1, 2, 3] } }, (err, resp) ->
 				err.message.should.equal("d.arr has a forbidden type. Only strings, numbers, boolean and null are allowed.")
 				done()
 				return
 			return
 		it 'Set some params for token1 with forbidden type (object): should fail', ( done ) ->
-			rs.set {app: app1, token: token1, d:{obj:{bla:1}}}, (err, resp) ->
+			rs.set { app: app1, token: token1, d: { obj: { bla: 1 } } }, (err, resp) ->
 				err.message.should.equal("d.obj has a forbidden type. Only strings, numbers, boolean and null are allowed.")
 				done()
 				return
 			return
 		it 'Set some params for token1 with an empty object: should fail', ( done ) ->
-			rs.set {app: app1, token: token1, d:{}}, (err, resp) ->
+			rs.set { app: app1, token: token1, d: {} }, (err, resp) ->
 				err.message.should.equal("d must containt at least one key.")
 				done()
 				return
 			return
 		it 'Set some params for token1: should fail as token1 was killed', ( done ) ->
-			rs.set {app: app1, token: token1, d:{str:"haha"}}, (err, resp) ->
+			rs.set { app: app1, token: token1, d: { str: "haha" } }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.not.have.keys('id')
 				done()
 				return
 			return
-		it 'Set some params for token2: should work', ( done ) ->
-			rs.set {app: app1, token: token2, d: {hi: "ho", count: 120, premium: true, nix:null }}, (err, resp) ->
+		it 'Set some params for token3: should work', ( done ) ->
+			rs.set { app: app2, token: token3, d: { hi: "ho", count: 120, premium: true, nix: null } }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
+				resp.id.should.equal("user1")
 				done()
 				return
 			return
-		it 'Get the session for token2: should work and contain new values', (done) ->
-			rs.get {app: app1, token: token2}, (err, resp) ->
+		it 'Get the session for token3: should work and contain new values', (done) ->
+			rs.get { app: app2, token: token3 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
-				resp.d.should.have.keys('hi','count','premium')
+				resp.d.should.have.keys('hi', 'count', 'premium')
 				done()
 				return
 			return
-		it 'Remove a param from token2: should work', ( done ) ->
-			rs.set {app: app1, token: token2, d: {hi: null}}, (err, resp) ->
+		it 'Remove a param from token3: should work', ( done ) ->
+			rs.set { app: app2, token: token3, d: { hi: null } }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
-				resp.d.should.have.keys('count','premium')
+				resp.d.should.have.keys('count', 'premium')
 				done()
 				return
 			return
-		it 'Get the session for token2: should work and contain modified values', (done) ->
-			rs.get {app: app1, token: token2}, (err, resp) ->
+		it 'Get the session for token3: should work and contain modified values', (done) ->
+			rs.get { app: app2, token: token3 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
-				resp.d.should.have.keys('count','premium')
+				resp.d.should.have.keys('count', 'premium')
 				done()
 				return
 			return
 
-		it 'Remove all remaining params from token2: should work', ( done ) ->
-			rs.set {app: app1, token: token2, d: {count: null, premium: null}}, (err, resp) ->
+		it 'Remove all remaining params from token3: should work', ( done ) ->
+			rs.set { app: app2, token: token3, d: { count: null, premium: null } }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
 				resp.should.not.have.keys('d')
 				done()
 				return
 			return
-		it 'Get the session for token2: should work and not contain the d key', (done) ->
-			rs.get {app: app1, token: token2}, (err, resp) ->
+		it 'Get the session for token3: should work and not contain the d key', (done) ->
+			rs.get { app: app2, token: token3 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
 				resp.should.not.have.keys('d')
 				done()
 				return
 			return
-		it 'Remove all remaining params from token2 again: should work', ( done ) ->
-			rs.set {app: app1, token: token2, d: {count: null, premium: null}}, (err, resp) ->
+		it 'Remove all remaining params from token3 again: should work', ( done ) ->
+			rs.set { app: app2, token: token3, d: { count: null, premium: null } }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
 				resp.should.not.have.keys('d')
 				done()
 				return
 			return
-		it 'Get the session for token2: should work and not contain the d key', (done) ->
-			rs.get {app: app1, token: token2}, (err, resp) ->
+		it 'Get the session for token3: should work and not contain the d key', (done) ->
+			rs.get { app: app2, token: token3 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
 				resp.should.not.have.keys('d')
@@ -545,11 +574,11 @@ describe 'Redis-Sessions Test', ->
 				return
 			return
 		
-		it 'Set some params for token2: should work', ( done ) ->
-			rs.set {app: app1, token: token2, d: {a: "sometext", b: 20, c: true, d: false}}, (err, resp) ->
+		it 'Set some params for token3: should work', ( done ) ->
+			rs.set { app: app2, token: token3, d: { a: "sometext", b: 20, c: true, d: false } }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
-				resp.d.should.have.keys('a','b','c','d')
+				resp.d.should.have.keys('a', 'b', 'c', 'd')
 				resp.d.a.should.equal("sometext")
 				resp.d.b.should.equal(20)
 				resp.d.c.should.equal(true)
@@ -558,11 +587,11 @@ describe 'Redis-Sessions Test', ->
 				return
 			return
 
-		it 'Modify some params for token2: should work', ( done ) ->
-			rs.set {app: app1, token: token2, d: {a: false, b: "some_text", c: 20, d: true, e:20.212}}, (err, resp) ->
+		it 'Modify some params for token3: should work', ( done ) ->
+			rs.set { app: app2, token: token3, d: { a: false, b: "some_text", c: 20, d: true, e: 20.212 } }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
-				resp.d.should.have.keys('a','b','c','d','e')
+				resp.d.should.have.keys('a', 'b', 'c', 'd', 'e')
 				resp.d.a.should.equal(false)
 				resp.d.b.should.equal('some_text')
 				resp.d.c.should.equal(20)
@@ -571,11 +600,11 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
-		it 'Get the params for token2: should work', ( done ) ->
-			rs.get {app: app1, token: token2}, (err, resp) ->
+		it 'Get the params for token3: should work', ( done ) ->
+			rs.get { app: app2, token: token3 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
-				resp.d.should.have.keys('a','b','c','d','e')
+				resp.d.should.have.keys('a', 'b', 'c', 'd', 'e')
 				resp.d.a.should.equal(false)
 				resp.d.b.should.equal('some_text')
 				resp.d.c.should.equal(20)
@@ -587,16 +616,15 @@ describe 'Redis-Sessions Test', ->
 
 		return
 	describe 'CLEANUP', ->
-		# Kill all tokens
 		it 'Remove all sessions from app1', (done) ->
-			rs.killall {app:app1}, (err, resp) ->
+			rs.killall { app: app1 }, (err, resp) ->
 				should.exist(resp.kill)
 				done()
 				return
 			return
 
 		it 'Remove all sessions from app2', (done) ->
-			rs.killall {app:app2}, (err, resp) ->
+			rs.killall { app: app2 }, (err, resp) ->
 				should.exist(resp.kill)
 				done()
 				return

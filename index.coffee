@@ -3,7 +3,7 @@ Redis Sessions
 
 The MIT License (MIT)
 
-Copyright © 2013 Patrick Liess, http://www.tcs.de
+Copyright © 2013-2018 Patrick Liess, http://www.tcs.de
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -11,8 +11,6 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ###
-
-
 
 _ 				= require "lodash"
 RedisInst 		= require "redis"
@@ -36,7 +34,8 @@ EventEmitter 	= require("events").EventEmitter
 #
 class RedisSessions extends EventEmitter
 
-	constructor: (o={}) ->
+	constructor: (o = {}) ->
+		super o
 		@_initErrors()
 		@redisns = o.namespace or "rs"
 		@redisns = @redisns + ":"
@@ -55,7 +54,7 @@ class RedisSessions extends EventEmitter
 			return
 
 
-		@redis.on "error", ( err )=>
+		@redis.on "error", ( err ) =>
 			if err.message.indexOf( "ECONNREFUSED" )
 				@connected = false
 				@emit( "disconnect" )
@@ -79,24 +78,23 @@ class RedisSessions extends EventEmitter
 	#
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	# * `dt` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
-
 	activity: (options, cb) =>
-		if @_validate(options, ["app","dt"],cb) is false
+		if @_validate(options, ["app", "dt"], cb) is false
 			return
 		@redis.zcount "#{@redisns}#{options.app}:_users", @_now() - options.dt, "+inf", (err, resp) ->
 			if err
 				cb(err)
 				return
-			cb(null, {activity: resp})
+			cb(null, { activity: resp })
 			return
 		return
 
 	# ## Create
 	#
-	# Creates a session for an app and id. 
+	# Creates a session for an app and id.
 	#
 	# **Parameters:**
-	# 
+	#
 	# An object with the following keys:
 	#
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
@@ -113,17 +111,16 @@ class RedisSessions extends EventEmitter
 	#		ttl: 3600
 	#	}, callback)
 	#
-	# Returns the token when successful. 
-
+	# Returns the token when successful.
 
 	create: (options, cb) =>
-		options.d = options.d or {___duMmYkEy:null}
-		options = @_validate(options, ["app","id","ip","ttl","d"], cb)
+		options.d = options.d or { ___duMmYkEy: null }
+		options = @_validate(options, ["app", "id", "ip", "ttl", "d", "no_resave"], cb)
 		if options is false
 			return
 		token = @_createToken()
 		# Prepopulate the multi statement
-		mc = @_createMultiStatement(options.app, token, options.id, options.ttl)
+		mc = @_createMultiStatement(options.app, token, options.id, options.ttl, false)
 		mc.push(["sadd", "#{@redisns}#{options.app}:us:#{options.id}", token])
 		# Create the default session hash
 		thesession = [
@@ -151,44 +148,44 @@ class RedisSessions extends EventEmitter
 			options.d = _.omit(options.d, nullkeys)
 			if _.keys(options.d).length
 				thesession = thesession.concat(["d", JSON.stringify(options.d)])
+		# Check for `no_resave` #36
+		if options.no_resave
+			thesession.push("no_resave")
+			thesession.push(1)
 		mc.push(thesession)
 		# Run the redis statement
 		@redis.multi(mc).exec (err, resp) ->
-			if err 
+			if err
 				cb(err)
 				return
 			if resp[4] isnt "OK"
 				cb("Unknow error")
 				return
-			cb(null, {token: token})
+			cb(null, { token: token })
 			return
 		return
 
-
 	# ## Get
 	#
-	# Get a session for an app and token. 
+	# Get a session for an app and token.
 	#
 	# **Parameters:**
-	# 
+	#
 	# An object with the following keys:
 	#
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	# * `token` must be [a-zA-Z0-9] and 64 chars long
-
 	get: (options, cb) =>
-		options = @_validate(options, ["app","token"], cb)
+		options = @_validate(options, ["app", "token"], cb)
 		if options is false
 			return
-		now = @_now()
 		thekey = "#{@redisns}#{options.app}:#{options.token}"
-		@redis.hmget thekey, "id", "r", "w", "ttl", "d", "la", "ip", (err, resp) =>
+		@redis.hmget thekey, "id", "r", "w", "ttl", "d", "la", "ip", "no_resave", (err, resp) =>
 			if err
 				cb(err)
 				return
 			# Prepare the data
 			o = @_prepareSession(resp)
-			
 			if o is null
 				cb(null, {})
 				return
@@ -197,10 +194,10 @@ class RedisSessions extends EventEmitter
 				cb(null, o)
 				return
 			# Update the counters
-			mc = @_createMultiStatement(options.app, options.token, o.id, o.ttl)
+			mc = @_createMultiStatement(options.app, options.token, o.id, o.ttl, o.no_resave)
 			mc.push(["hincrby", thekey, "r", 1])
 			if o.idle > 1
-				mc.push(["hset", thekey, "la", now])
+				mc.push(["hset", thekey, "la", @_now()])
 			@redis.multi(mc).exec (err, resp) ->
 				if err
 					cb(err)
@@ -210,19 +207,38 @@ class RedisSessions extends EventEmitter
 			return
 		return
 
+	_no_resave_check: (session, options, cb, done) ->
+		if not session.no_resave
+			done()
+			return
+		# Check if the session has run out
+		@redis.zscore "#{@redisns}SESSIONS", "#{options.app}:#{options.token}:#{session.id}", (err, resp) =>
+			if err
+				cb(err)
+				return
+			if resp is null or resp < @_now()
+				# Session has run out.
+				cb(null, {})
+				return
+			done()
+			return
+		return
+		
+
+
 	# ## Kill
 	#
-	# Kill a session for an app and token. 
+	# Kill a session for an app and token.
 	#
 	# **Parameters:**
-	# 
+	#
 	# An object with the following keys:
 	#
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	# * `token` must be [a-zA-Z0-9] and 64 chars long
 	#
 	kill: (options, cb) =>
-		options = @_validate(options, ["app","token"], cb)
+		options = @_validate(options, ["app", "token"], cb)
 		if options is false
 			return
 		options._noupdate = true
@@ -231,7 +247,7 @@ class RedisSessions extends EventEmitter
 				cb(err)
 				return
 			if not resp.id
-				cb(null, {kill: 0})
+				cb(null, { kill: 0 })
 				return
 			options.id = resp.id
 			@_kill(options, cb)
@@ -251,21 +267,21 @@ class RedisSessions extends EventEmitter
 			["del", "#{@redisns}#{options.app}:#{options.token}"]
 			["exists", "#{@redisns}#{options.app}:us:#{options.id}"]
 		]
-		@redis.multi(mc).exec (err,resp) =>
+		@redis.multi(mc).exec (err, resp) =>
 			if err
 				cb(err)
 				return
-			# NOW. If the last reply of the multi statement is 0 then this was the last session.  
+			# NOW. If the last reply of the multi statement is 0 then this was the last session.
 			# We need to remove the ZSET for this user also:
 			if resp[4] is 0
 				@redis.zrem "#{@redisns}#{options.app}:_users", options.id, ->
 					if err
 						cb(err)
 						return
-					cb(null, {kill: resp[3]})
+					cb(null, { kill: resp[3] })
 					return
 			else
-				cb(null, {kill: resp[3]})
+				cb(null, { kill: resp[3] })
 			return
 		return
 
@@ -277,7 +293,6 @@ class RedisSessions extends EventEmitter
 	#
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	#
-
 	killall: (options, cb) =>
 		options = @_validate(options, ["app"], cb)
 		if options is false
@@ -290,7 +305,7 @@ class RedisSessions extends EventEmitter
 				cb(err)
 				return
 			if not resp.length
-				cb(null, {kill: 0})
+				cb(null, { kill: 0 })
 				return
 			globalkeys = []
 			tokenkeys = []
@@ -314,11 +329,10 @@ class RedisSessions extends EventEmitter
 				if err
 					cb(err)
 					return
-				cb(null, {kill: resp[0]})
+				cb(null, { kill: resp[0] })
 				return
 			return
 		return
-
 
 	# ## Kill all Sessions of Id
 	#
@@ -329,9 +343,8 @@ class RedisSessions extends EventEmitter
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	# * `id` must be [a-zA-Z0-9_-] and 1-64 chars long
 	#
-
 	killsoid: (options, cb) =>
-		options = @_validate(options, ["app","id"], cb)
+		options = @_validate(options, ["app", "id"], cb)
 		if options is false
 			return
 		@redis.smembers "#{@redisns}#{options.app}:us:#{options.id}", (err, resp) =>
@@ -339,7 +352,7 @@ class RedisSessions extends EventEmitter
 				cb(err)
 				return
 			if not resp.length
-				cb(null, {kill: 0})
+				cb(null, { kill: 0 })
 				return
 			mc = []
 			# Grab all sessions we need to get
@@ -360,14 +373,14 @@ class RedisSessions extends EventEmitter
 				for e in resp[3...] by 4
 					total = total + e
 
-				# NOW. If the last reply of the multi statement is 0 then this was the last session.  
+				# NOW. If the last reply of the multi statement is 0 then this was the last session.
 				# We need to remove the ZSET for this user also:
 				if _.last(resp) is 0
 					@redis.zrem "#{@redisns}#{options.app}:_users", options.id, ->
-						cb(null, {kill: total})
+						cb(null, { kill: total })
 						return
 				else
-					cb(null, {kill: total})
+					cb(null, { kill: total })
 				return
 			return
 		return
@@ -387,19 +400,18 @@ class RedisSessions extends EventEmitter
 		@redis.quit()
 		return
 
-
 	# ## Set
 	#
-	# Set/Update/Delete custom data for a single session.  
+	# Set/Update/Delete custom data for a single session.
 	# All custom data is stored in the `d` object which is a simple hash object structure.
 	#
-	# `d` might contain **one or more** keys with the following types: `string`, `number`, `boolean`, `null`.  
+	# `d` might contain **one or more** keys with the following types: `string`, `number`, `boolean`, `null`.
 	# Keys with all values except `null` will be stored. If a key containts `null` the key will be removed.
-	# 
+	#
 	# Note: If `d` already contains keys that are not supplied in the set request then these keys will be untouched.
 	#
 	# **Parameters:**
-	# 
+	#
 	# An object with the following keys:
 	#
 	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
@@ -408,12 +420,12 @@ class RedisSessions extends EventEmitter
 	#
 
 	set: (options, cb) =>
-		options = @_validate(options, ["app","token","d"], cb)
+		options = @_validate(options, ["app", "token", "d", "no_resave"], cb)
 		if options is false
 			return
 		options._noupdate = true
 		# Get the session
-		@get options, (err,resp) =>
+		@get options, (err, resp) =>
 			if err
 				cb(err)
 				return
@@ -428,13 +440,13 @@ class RedisSessions extends EventEmitter
 					nullkeys.push(e)
 			# OK ready to set some data
 			if resp.d
-				resp.d = _.extend(_.omit(resp.d, nullkeys), _.omit(options.d, nullkeys))				
+				resp.d = _.extend(_.omit(resp.d, nullkeys), _.omit(options.d, nullkeys))
 			else
 				resp.d = _.omit(options.d, nullkeys)
 			# We now have a cleaned version of resp.d ready to save back to Redis.
 			# If resp.d contains no keys we want to delete the `d` key within the hash though.
 			thekey = "#{@redisns}#{options.app}:#{options.token}"
-			mc = @_createMultiStatement(options.app, options.token, resp.id, resp.ttl)
+			mc = @_createMultiStatement(options.app, options.token, resp.id, resp.ttl, resp.no_resave)
 			mc.push(["hincrby", thekey, "w", 1])
 			# Only update the `la` (last access) value if more than 1 second idle
 			if resp.idle > 1
@@ -445,7 +457,7 @@ class RedisSessions extends EventEmitter
 				mc.push(["hdel", thekey, "d"])
 				resp = _.omit(resp, "d")
 
-			@redis.multi(mc).exec (err,reply) ->
+			@redis.multi(mc).exec (err, reply) ->
 				if err
 					cb(err)
 					return
@@ -468,7 +480,7 @@ class RedisSessions extends EventEmitter
 	# * `dt` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
 
 	soapp: (options, cb) =>
-		if @_validate(options, ["app","dt"],cb) is false
+		if @_validate(options, ["app", "dt"], cb) is false
 			return
 		@redis.zrevrangebyscore "#{@redisns}#{options.app}:_sessions", "+inf", @_now() - options.dt, (err, resp) =>
 			if err
@@ -493,7 +505,7 @@ class RedisSessions extends EventEmitter
 	#
 
 	soid: (options, cb) =>
-		options = @_validate(options, ["app","id"], cb)
+		options = @_validate(options, ["app", "id"], cb)
 		if options is false
 			return
 		@redis.smembers "#{@redisns}#{options.app}:us:#{options.id}", (err, resp) =>
@@ -506,13 +518,16 @@ class RedisSessions extends EventEmitter
 
 	# Helpers
 
-	_createMultiStatement: (app, token, id, ttl) ->
+	_createMultiStatement: (app, token, id, ttl, no_resave) ->
 		now = @_now()
-		[
+		o = [
 			["zadd", "#{@redisns}#{app}:_sessions", now, "#{token}:#{id}"]
 			["zadd", "#{@redisns}#{app}:_users", now, id]
-			["zadd", "#{@redisns}SESSIONS", now + ttl, "#{app}:#{token}:#{id}"]	
+			["zadd", "#{@redisns}SESSIONS", now + ttl, "#{app}:#{token}:#{id}"]
 		]
+		if no_resave
+			o.push(["hset", "#{@redisns}#{app}:#{token}", "ttl", ttl])
+		return o
 
 
 	_createToken: ->
@@ -524,15 +539,14 @@ class RedisSessions extends EventEmitter
 
 		# add the current time in ms to the very end seperated by a Z
 		t + 'Z' + new Date().getTime().toString(36)
-		
 
-	_handleError: (cb, err, data={}) =>
+	_handleError: (cb, err, data = {}) =>
 		# try to create a error Object with humanized message
 		if _.isString(err)
 			_err = new Error()
 			_err.name = err
 			_err.message = @_ERRORS?[err]?(data) or "unkown"
-		else 
+		else
 			_err = err
 		cb(_err)
 		return
@@ -543,40 +557,40 @@ class RedisSessions extends EventEmitter
 			@_ERRORS[key] = _.template(msg)
 		return
 
-
 	_now: ->
 		parseInt((new Date()).getTime() / 1000)
-
 
 	_prepareSession: (session) ->
 		now = @_now()
 		if session[0] is null
 			return null
 		# Create the return object
-		o = 
+		o =
 			id: session[0]
 			r: Number(session[1])
 			w: Number(session[2])
 			ttl: Number(session[3])
 			idle: now - session[5]
 			ip: session[6]
-
 		# Oh wait. If o.ttl < o.idle we need to bail out.
 		if o.ttl < o.idle
 			# We return an empty session object
 			return null
+		# Support for `no_resave` #36
+		if session[7] is "1"
+			o.no_resave = true
+			o.ttl = o.ttl - o.idle
 		# Parse the content of `d`
 		if session[4]
 			o.d = JSON.parse(session[4])
-		o
-
+		return o
 
 	_returnSessions: (options, sessions, cb) =>
 		if not sessions.length
-			cb(null, {sessions: []})
+			cb(null, { sessions: [] })
 			return
 		mc = for e in sessions
-			["hmget", "#{@redisns}#{options.app}:#{e}", "id", "r", "w", "ttl", "d", "la", "ip"]
+			["hmget", "#{@redisns}#{options.app}:#{e}", "id", "r", "w", "ttl", "d", "la", "ip", "no_resave"]
 		@redis.multi(mc).exec (err, resp) =>
 			if err
 				cb(err)
@@ -585,55 +599,60 @@ class RedisSessions extends EventEmitter
 			for e in resp
 				session = @_prepareSession(e)
 				if session isnt null
+					
 					o.push(session)
-			cb(null, {sessions: o})
+			cb(null, { sessions: o })
 			return
 		return
 
 	# Validation regex used by _validate
 	_VALID:
-		app:	/^([a-zA-Z0-9_-]){3,20}$/
-		id:		/^(.*?){1,128}$/
-		ip:		/^.{1,39}$/
-		token:	/^([a-zA-Z0-9]){64}$/
-
+		app: /^([a-zA-Z0-9_-]){3,20}$/
+		id:	/^(.*?){1,128}$/
+		ip:	/^.{1,39}$/
+		token: /^([a-zA-Z0-9]){64}$/
                     
 	_validate: (o, items, cb) ->
 		for item in items
 			switch item
 				when "app", "id", "ip", "token"
 					if not o[item]
-						@_handleError(cb, "missingParameter", {item:item})
+						@_handleError(cb, "missingParameter", { item: item })
 						return false
 					o[item] = o[item].toString()
 					if not @_VALID[item].test(o[item])
-						@_handleError(cb, "invalidFormat", {item:item})
+						@_handleError(cb, "invalidFormat", { item: item })
 						return false
 				when "ttl"
-					o.ttl = parseInt(o.ttl or 7200,10)
+					o.ttl = parseInt(o.ttl or 7200, 10)
 					if _.isNaN(o.ttl) or not _.isNumber(o.ttl) or o.ttl < 10
-						@_handleError(cb, "invalidValue", {msg:"ttl must be a positive integer >= 10"})
+						@_handleError(cb, "invalidValue", { msg: "ttl must be a positive integer >= 10" })
 						return false
+				when "no_resave"
+					if o.no_resave is true
+						o.no_resave = true
+					else
+						o.no_resave = false
 				when "dt"
-					o[item] = parseInt(o[item],10)
+					o[item] = parseInt(o[item], 10)
 					if _.isNaN(o[item]) or not _.isNumber(o[item]) or o[item] < 10
-						@_handleError(cb, "invalidValue", {msg:"ttl must be a positive integer >= 10"})
+						@_handleError(cb, "invalidValue", { msg: "ttl must be a positive integer >= 10" })
 						return false
 				when "d"
 					if not o[item]
-						@_handleError(cb, "missingParameter", {item:item})
+						@_handleError(cb, "missingParameter", { item: item })
 						return false
 					if not _.isObject(o.d) or _.isArray(o.d)
-						@_handleError(cb, "invalidValue", {msg:"d must be an object"})
+						@_handleError(cb, "invalidValue", { msg: "d must be an object" })
 						return false
 					keys = _.keys(o.d)
 					if not keys.length
-						@_handleError(cb, "invalidValue", {msg:"d must containt at least one key."})
+						@_handleError(cb, "invalidValue", { msg: "d must containt at least one key." })
 						return false
 					# Check if every key is either a boolean, string or a number
 					for e of o.d
 						if not _.isString(o.d[e]) and not _.isNumber(o.d[e]) and not _.isBoolean(o.d[e]) and not _.isNull(o.d[e])
-							@_handleError(cb, "invalidValue", {msg:"d.#{e} has a forbidden type. Only strings, numbers, boolean and null are allowed."})
+							@_handleError(cb, "invalidValue", { msg: "d.#{e} has a forbidden type. Only strings, numbers, boolean and null are allowed." })
 							return false
 		return o
 
@@ -660,6 +679,5 @@ class RedisSessions extends EventEmitter
 		"missingParameter": "No <%= item %> supplied"
 		"invalidFormat": "Invalid <%= item %> format"
 		"invalidValue": "<%= msg %>"
-	
 
 module.exports = RedisSessions
