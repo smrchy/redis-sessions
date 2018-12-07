@@ -3,6 +3,7 @@
 ## 2.0.3
 
 * Removed `hiredis` from optional dependencies for better Node 10 compatibility.
+* Issue #35 Clear wipe interval on quit()
 
 ## 2.0.2
 
