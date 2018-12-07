@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2.0.3
+
+* Removed `hiredis` from optional dependencies for better Node 10 compatibility.
+
 ## 2.0.2
 
 * Updated lodash to ^4.17.11

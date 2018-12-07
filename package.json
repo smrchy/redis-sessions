@@ -8,14 +8,12 @@
     "node": "> 0.10.20"
   },
   "scripts": {
+    "build": "./node_modules/.bin/coffee -cb index.coffee && ./node_modules/.bin/coffee -cb test/test.coffee",
     "test": "node --expose-internals node_modules/.bin/mocha ./test/test.js"
   },
   "dependencies": {
     "lodash": "^4.17.11",
     "redis": "^2.x"
-  },
-  "optionalDependencies": {
-    "hiredis": "^0.5.x"
   },
   "devDependencies": {
     "coffeescript": "^1.12.7",
