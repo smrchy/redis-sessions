@@ -52,6 +52,7 @@ RedisSessions = (function(superClass) {
     this._initErrors();
     this.redisns = o.namespace || "rs";
     this.redisns = this.redisns + ":";
+    this.wiperinterval = null;
     if (((ref = o.client) != null ? (ref1 = ref.constructor) != null ? ref1.name : void 0 : void 0) === "RedisClient") {
       this.redis = o.client;
     } else if (o.options && o.options.url) {
@@ -82,7 +83,7 @@ RedisSessions = (function(superClass) {
       if (wipe < 10) {
         wipe = 10;
       }
-      setInterval(this._wipe, wipe * 1000);
+      this.wiperinterval = setInterval(this._wipe, wipe * 1000);
     }
   }
 
@@ -372,6 +373,9 @@ RedisSessions = (function(superClass) {
   };
 
   RedisSessions.prototype.quit = function() {
+    if (this.wiperinterval !== null) {
+      clearInterval(this.wiperinterval);
+    }
     this.redis.quit();
   };
 

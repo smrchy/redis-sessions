@@ -39,7 +39,7 @@ class RedisSessions extends EventEmitter
 		@_initErrors()
 		@redisns = o.namespace or "rs"
 		@redisns = @redisns + ":"
-
+		@wiperinterval = null
 		if o.client?.constructor?.name is "RedisClient"
 			@redis = o.client
 		else if o.options and o.options.url
@@ -67,7 +67,7 @@ class RedisSessions extends EventEmitter
 			wipe = o.wipe or 600
 			if wipe < 10
 				wipe = 10
-			setInterval(@_wipe, wipe * 1000)
+			@wiperinterval = setInterval(@_wipe, wipe * 1000)
 
 
 	# ## Activity
@@ -397,6 +397,8 @@ class RedisSessions extends EventEmitter
 	# Quit the Redis connection
 	# This is needed if Redis-Session is used with AWS Lambda.
 	quit: () =>
+		if @wiperinterval isnt null
+			clearInterval(@wiperinterval)
 		@redis.quit()
 		return
 
