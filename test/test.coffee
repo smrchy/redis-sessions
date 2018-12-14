@@ -5,6 +5,7 @@ RedisSessions = require "../index"
 
 describe 'Redis-Sessions Test', ->
 	rs = null
+	rswithcache = null
 	app1 = "test"
 	app2 = "TEST"
 
@@ -27,7 +28,16 @@ describe 'Redis-Sessions Test', ->
 	
 
 	it 'get a RedisSessions instance', (done) ->
-		rs = new RedisSessions()
+		rs = new RedisSessions(
+			cachetime: 0
+		)
+		rs.should.be.an.instanceOf RedisSessions
+		done()
+		return
+	it 'get a RedisSessions instance', (done) ->
+		rswithcache = new RedisSessions(
+			cachetime: 2
+		)
 		rs.should.be.an.instanceOf RedisSessions
 		done()
 		return
@@ -230,16 +240,18 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
-		it "Create a session with `no_resave` and wait 6s", (done) ->
+		it "Create a session with `no_resave`", (done) ->
 			rs.create { app: app1, id: "user5noresave", ip: "127.0.0.1", ttl: 10, no_resave: true }, (err, resp) ->
 				should.not.exist(err)
 				should.exist(resp)
 				resp.should.have.keys('token')
 				token5 = resp.token
-				setTimeout(done, 6000)
+				done()
 				return
 			return
-		
+		it 'Wait 6s', (done) ->
+			setTimeout(done, 6000)
+			return
 		it 'Create a session for another app with valid data: should return a token', (done) ->
 			rs.create { app: app2, id: "user1", ip: "127.0.0.1", ttl: 30 }, (err, resp) ->
 				should.not.exist(err)
@@ -383,7 +395,7 @@ describe 'Redis-Sessions Test', ->
 			return
 
 
-		it 'Get the Session for token5: should nave `no_resave` parameter set. Wait 6 seconds', ( done ) ->
+		it 'Get the Session for token5: should nave `no_resave` parameter set.', ( done ) ->
 			rs.get { app: app1, token: token5 }, (err, resp) ->
 				should.not.exist(err)
 				resp.should.be.an.Object
@@ -393,10 +405,12 @@ describe 'Redis-Sessions Test', ->
 				resp.idle.should.be.above(4)
 				resp.r.should.equal(1)
 				resp.no_resave.should.equal(true)
-				setTimeout(done, 6000)
+				done()
 				return
 			return
-
+		it 'Wait 6s', (done) ->
+			setTimeout(done, 6000)
+			return
 		it 'Get the Session for token2: Should be gone', ( done ) ->
 			rs.get { app: app1, token: token2 }, (err, resp) ->
 				resp.should.be.empty()
@@ -613,8 +627,114 @@ describe 'Redis-Sessions Test', ->
 				done()
 				return
 			return
-
 		return
+	describe 'CACHE', ->
+		it 'Get token3: should work', ( done ) ->
+			rswithcache.get { app: app2, token: token3 }, (err, resp) ->
+				should.not.exist(err)
+				resp.r.should.equal(6)
+				done()
+				return
+			return
+		it 'Get token3: should work, but from cache', ( done ) ->
+			rswithcache.get { app: app2, token: token3 }, (err, resp) ->
+				should.not.exist(err)
+				resp.r.should.equal(6)
+				done()
+				return
+			return
+		it 'Wait 2.1s', (done) ->
+			setTimeout(done, 2100)
+			return
+		it 'Get token3: should work, not from cache', ( done ) ->
+			rswithcache.get { app: app2, token: token3 }, (err, resp) ->
+				should.not.exist(err)
+				resp.r.should.equal(7)
+				done()
+				return
+			return
+		it 'Modify the params for token3: should work, should flush cache', ( done ) ->
+			rswithcache.set { app: app2, token: token3, d: { a: null, b: "some_text2", c: 30, d: false, e: 20.5 } }, (err, resp) ->
+				should.not.exist(err)
+				resp.should.be.an.Object
+				resp.d.should.have.keys('b', 'c', 'd', 'e')
+				should.not.exist(resp.d.a)
+				resp.d.b.should.equal('some_text2')
+				resp.d.c.should.equal(30)
+				resp.d.d.should.equal(false)
+				resp.d.e.should.equal(20.5)
+				# Delay the reply just a tiny bit in case Travis works slower
+				setTimeout(done, 20)
+				return
+			return
+		it 'Get token3: should work, not from cache', ( done ) ->
+			rswithcache.get { app: app2, token: token3 }, (err, resp) ->
+				should.not.exist(err)
+				resp.r.should.equal(8)
+				resp.d.c.should.equal(30)
+				done()
+				return
+			return
+		it 'Get token3: should work, from cache', ( done ) ->
+			rswithcache.get { app: app2, token: token3 }, (err, resp) ->
+				should.not.exist(err)
+				resp.r.should.equal(8)
+				resp.d.c.should.equal(30)
+				done()
+				return
+			return
+		it 'Get 500 sessions for app2: succeed (cache is empty)', (done) ->
+			pq = []
+			for e, i in bulksessions[...500]
+				pq.push({ app: app2, token: e })
+			async.map pq, rswithcache.get, (err, resp) ->
+				resp.length.should.equal(500)
+				for e, i in resp
+					e.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip')
+					e.id.should.equal("bulkuser_" + i)
+				done()
+				return
+			return
+		it 'Get 500 sessions for app2: succeed (from cache)', (done) ->
+			pq = []
+			for e, i in bulksessions[...500]
+				pq.push({ app: app2, token: e })
+			async.map pq, rswithcache.get, (err, resp) ->
+				resp.length.should.equal(500)
+				for e, i in resp
+					e.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip')
+					e.id.should.equal("bulkuser_" + i)
+				done()
+				return
+			return
+		it 'Get 500 sessions for app2 again: succeed (from cache)', (done) ->
+			pq = []
+			for e, i in bulksessions[...500]
+				pq.push({ app: app2, token: e })
+			async.map pq, rswithcache.get, (err, resp) ->
+				resp.length.should.equal(500)
+				for e, i in resp
+					e.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip')
+					e.id.should.equal("bulkuser_" + i)
+				done()
+				return
+			return
+		it 'Wait 2s', (done) ->
+			setTimeout(done, 2000)
+			return
+		it 'Get 500 sessions for app2: succeed (NOT from cache)', (done) ->
+			pq = []
+			for e, i in bulksessions[...500]
+				pq.push({ app: app2, token: e })
+			async.map pq, rswithcache.get, (err, resp) ->
+				resp.length.should.equal(500)
+				for e, i in resp
+					e.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip')
+					e.id.should.equal("bulkuser_" + i)
+				done()
+				return
+			return
+		
 	describe 'CLEANUP', ->
 		it 'Remove all sessions from app1', (done) ->
 			rs.killall { app: app1 }, (err, resp) ->

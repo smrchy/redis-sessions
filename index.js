@@ -13,7 +13,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-var EventEmitter, RedisInst, RedisSessions, _,
+var EventEmitter, NodeCache, RedisInst, RedisSessions, _,
   bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
   extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
   hasProp = {}.hasOwnProperty;
@@ -24,11 +24,13 @@ RedisInst = require("redis");
 
 EventEmitter = require("events").EventEmitter;
 
+NodeCache = require("node-cache");
+
 RedisSessions = (function(superClass) {
   extend(RedisSessions, superClass);
 
   function RedisSessions(o) {
-    var ref, ref1, wipe;
+    var isclient, redissub, ref, ref1, wipe;
     if (o == null) {
       o = {};
     }
@@ -53,7 +55,11 @@ RedisSessions = (function(superClass) {
     this.redisns = o.namespace || "rs";
     this.redisns = this.redisns + ":";
     this.wiperinterval = null;
+    this.sessioncache = null;
+    this.iscache = false;
+    isclient = false;
     if (((ref = o.client) != null ? (ref1 = ref.constructor) != null ? ref1.name : void 0 : void 0) === "RedisClient") {
+      isclient = true;
       this.redis = o.client;
     } else if (o.options && o.options.url) {
       this.redis = RedisInst.createClient(o.options);
@@ -78,6 +84,31 @@ RedisSessions = (function(superClass) {
         }
       };
     })(this));
+    if (o.cachetime) {
+      if (isclient) {
+        console.log("Warning: Caching is disabled. Must not supply `client` option");
+      } else {
+        o.cachetime = parseInt(o.cachetime, 10);
+        if (o.cachetime > 0) {
+          this.sessioncache = new NodeCache({
+            stdTTL: o.cachetime,
+            useClones: false
+          });
+          if (o.options && o.options.url) {
+            redissub = RedisInst.createClient(o.options);
+          } else {
+            redissub = RedisInst.createClient(o.port || 6379, o.host || "127.0.0.1", o.options || {});
+          }
+          redissub.on("message", (function(_this) {
+            return function(c, m) {
+              _this.sessioncache.del(m);
+            };
+          })(this));
+          this.iscache = true;
+          redissub.subscribe(this.redisns + "cache");
+        }
+      }
+    }
     if (o.wipe !== 0) {
       wipe = o.wipe || 600;
       if (wipe < 10) {
@@ -148,12 +179,20 @@ RedisSessions = (function(superClass) {
   };
 
   RedisSessions.prototype.get = function(options, cb) {
-    var thekey;
+    var cache, cachekey, thekey;
     options = this._validate(options, ["app", "token"], cb);
     if (options === false) {
       return;
     }
-    thekey = "" + this.redisns + options.app + ":" + options.token;
+    cachekey = options.app + ":" + options.token;
+    if (this.iscache && !options._nocache) {
+      cache = this.sessioncache.get(cachekey);
+      if (cache !== void 0) {
+        cb(null, cache);
+        return;
+      }
+    }
+    thekey = "" + this.redisns + cachekey;
     this.redis.hmget(thekey, "id", "r", "w", "ttl", "d", "la", "ip", "no_resave", (function(_this) {
       return function(err, resp) {
         var mc, o;
@@ -165,6 +204,9 @@ RedisSessions = (function(superClass) {
         if (o === null) {
           cb(null, {});
           return;
+        }
+        if (_this.iscache) {
+          _this.sessioncache.set(cachekey, o);
         }
         if (options._noupdate) {
           cb(null, o);
@@ -233,6 +275,9 @@ RedisSessions = (function(superClass) {
   RedisSessions.prototype._kill = function(options, cb) {
     var mc;
     mc = [["zrem", "" + this.redisns + options.app + ":_sessions", options.token + ":" + options.id], ["srem", "" + this.redisns + options.app + ":us:" + options.id, options.token], ["zrem", this.redisns + "SESSIONS", options.app + ":" + options.token + ":" + options.id], ["del", "" + this.redisns + options.app + ":" + options.token], ["exists", "" + this.redisns + options.app + ":us:" + options.id]];
+    if (this.iscache) {
+      mc.push(["publish", this.redisns + "cache", options.app + ":" + options.token]);
+    }
     this.redis.multi(mc).exec((function(_this) {
       return function(err, resp) {
         if (err) {
@@ -268,7 +313,7 @@ RedisSessions = (function(superClass) {
     appuserkey = "" + this.redisns + options.app + ":_users";
     this.redis.zrange(appsessionkey, 0, -1, (function(_this) {
       return function(err, resp) {
-        var e, globalkeys, j, len, mc, thekey, tokenkeys, userkeys, ussets;
+        var e, globalkeys, j, k, len, len1, mc, thekey, tokenkeys, userkeys, ussets;
         if (err) {
           cb(err);
           return;
@@ -300,6 +345,12 @@ RedisSessions = (function(superClass) {
           return results;
         }).call(_this);
         mc = [["zrem", appsessionkey].concat(resp), ["zrem", appuserkey].concat(userkeys), ["zrem", _this.redisns + "SESSIONS"].concat(globalkeys), ["del"].concat(ussets), ["del"].concat(tokenkeys)];
+        if (_this.iscache) {
+          for (k = 0, len1 = resp.length; k < len1; k++) {
+            e = resp[k];
+            mc.push(["publish", _this.redisns + "cache", options.app + ":" + (e.split(":")[0])]);
+          }
+        }
         _this.redis.multi(mc).exec(function(err, resp) {
           if (err) {
             cb(err);
@@ -338,6 +389,9 @@ RedisSessions = (function(superClass) {
           mc.push(["srem", "" + _this.redisns + options.app + ":us:" + options.id, token]);
           mc.push(["zrem", _this.redisns + "SESSIONS", options.app + ":" + token + ":" + options.id]);
           mc.push(["del", "" + _this.redisns + options.app + ":" + token]);
+          if (_this.iscache) {
+            mc.push(["publish", _this.redisns + "cache", options.app + ":" + token]);
+          }
         }
         mc.push(["exists", "" + _this.redisns + options.app + ":us:" + options.id]);
         _this.redis.multi(mc).exec(function(err, resp) {
@@ -385,6 +439,7 @@ RedisSessions = (function(superClass) {
       return;
     }
     options._noupdate = true;
+    options._nocache = true;
     this.get(options, (function(_this) {
       return function(err, resp) {
         var e, mc, nullkeys, thekey;
@@ -418,6 +473,9 @@ RedisSessions = (function(superClass) {
         } else {
           mc.push(["hdel", thekey, "d"]);
           resp = _.omit(resp, "d");
+        }
+        if (_this.iscache) {
+          mc.push(["publish", _this.redisns + "cache", options.app + ":" + options.token]);
         }
         _this.redis.multi(mc).exec(function(err, reply) {
           if (err) {

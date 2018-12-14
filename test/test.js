@@ -10,8 +10,9 @@ async = require("async");
 RedisSessions = require("../index");
 
 describe('Redis-Sessions Test', function() {
-  var app1, app2, bulksessions, rs, token1, token2, token3, token4, token5;
+  var app1, app2, bulksessions, rs, rswithcache, token1, token2, token3, token4, token5;
   rs = null;
+  rswithcache = null;
   app1 = "test";
   app2 = "TEST";
   token1 = null;
@@ -28,7 +29,16 @@ describe('Redis-Sessions Test', function() {
     process.exit(0);
   });
   it('get a RedisSessions instance', function(done) {
-    rs = new RedisSessions();
+    rs = new RedisSessions({
+      cachetime: 0
+    });
+    rs.should.be.an.instanceOf(RedisSessions);
+    done();
+  });
+  it('get a RedisSessions instance', function(done) {
+    rswithcache = new RedisSessions({
+      cachetime: 2
+    });
     rs.should.be.an.instanceOf(RedisSessions);
     done();
   });
@@ -294,7 +304,7 @@ describe('Redis-Sessions Test', function() {
         done();
       });
     });
-    it("Create a session with `no_resave` and wait 6s", function(done) {
+    it("Create a session with `no_resave`", function(done) {
       rs.create({
         app: app1,
         id: "user5noresave",
@@ -306,8 +316,11 @@ describe('Redis-Sessions Test', function() {
         should.exist(resp);
         resp.should.have.keys('token');
         token5 = resp.token;
-        setTimeout(done, 6000);
+        done();
       });
+    });
+    it('Wait 6s', function(done) {
+      setTimeout(done, 6000);
     });
     it('Create a session for another app with valid data: should return a token', function(done) {
       rs.create({
@@ -503,7 +516,7 @@ describe('Redis-Sessions Test', function() {
         done();
       });
     });
-    it('Get the Session for token5: should nave `no_resave` parameter set. Wait 6 seconds', function(done) {
+    it('Get the Session for token5: should nave `no_resave` parameter set.', function(done) {
       rs.get({
         app: app1,
         token: token5
@@ -516,8 +529,11 @@ describe('Redis-Sessions Test', function() {
         resp.idle.should.be.above(4);
         resp.r.should.equal(1);
         resp.no_resave.should.equal(true);
-        setTimeout(done, 6000);
+        done();
       });
+    });
+    it('Wait 6s', function(done) {
+      setTimeout(done, 6000);
     });
     it('Get the Session for token2: Should be gone', function(done) {
       rs.get({
@@ -842,6 +858,177 @@ describe('Redis-Sessions Test', function() {
         resp.d.c.should.equal(20);
         resp.d.d.should.equal(true);
         resp.d.e.should.equal(20.212);
+        done();
+      });
+    });
+  });
+  describe('CACHE', function() {
+    it('Get token3: should work', function(done) {
+      rswithcache.get({
+        app: app2,
+        token: token3
+      }, function(err, resp) {
+        should.not.exist(err);
+        resp.r.should.equal(6);
+        done();
+      });
+    });
+    it('Get token3: should work, but from cache', function(done) {
+      rswithcache.get({
+        app: app2,
+        token: token3
+      }, function(err, resp) {
+        should.not.exist(err);
+        resp.r.should.equal(6);
+        done();
+      });
+    });
+    it('Wait 2.1s', function(done) {
+      setTimeout(done, 2100);
+    });
+    it('Get token3: should work, not from cache', function(done) {
+      rswithcache.get({
+        app: app2,
+        token: token3
+      }, function(err, resp) {
+        should.not.exist(err);
+        resp.r.should.equal(7);
+        done();
+      });
+    });
+    it('Modify the params for token3: should work, should flush cache', function(done) {
+      rswithcache.set({
+        app: app2,
+        token: token3,
+        d: {
+          a: null,
+          b: "some_text2",
+          c: 30,
+          d: false,
+          e: 20.5
+        }
+      }, function(err, resp) {
+        should.not.exist(err);
+        resp.should.be.an.Object;
+        resp.d.should.have.keys('b', 'c', 'd', 'e');
+        should.not.exist(resp.d.a);
+        resp.d.b.should.equal('some_text2');
+        resp.d.c.should.equal(30);
+        resp.d.d.should.equal(false);
+        resp.d.e.should.equal(20.5);
+        setTimeout(done, 20);
+      });
+    });
+    it('Get token3: should work, not from cache', function(done) {
+      rswithcache.get({
+        app: app2,
+        token: token3
+      }, function(err, resp) {
+        should.not.exist(err);
+        resp.r.should.equal(8);
+        resp.d.c.should.equal(30);
+        done();
+      });
+    });
+    it('Get token3: should work, from cache', function(done) {
+      rswithcache.get({
+        app: app2,
+        token: token3
+      }, function(err, resp) {
+        should.not.exist(err);
+        resp.r.should.equal(8);
+        resp.d.c.should.equal(30);
+        done();
+      });
+    });
+    it('Get 500 sessions for app2: succeed (cache is empty)', function(done) {
+      var e, i, j, len, pq, ref;
+      pq = [];
+      ref = bulksessions.slice(0, 500);
+      for (i = j = 0, len = ref.length; j < len; i = ++j) {
+        e = ref[i];
+        pq.push({
+          app: app2,
+          token: e
+        });
+      }
+      async.map(pq, rswithcache.get, function(err, resp) {
+        var k, len1;
+        resp.length.should.equal(500);
+        for (i = k = 0, len1 = resp.length; k < len1; i = ++k) {
+          e = resp[i];
+          e.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
+          e.id.should.equal("bulkuser_" + i);
+        }
+        done();
+      });
+    });
+    it('Get 500 sessions for app2: succeed (from cache)', function(done) {
+      var e, i, j, len, pq, ref;
+      pq = [];
+      ref = bulksessions.slice(0, 500);
+      for (i = j = 0, len = ref.length; j < len; i = ++j) {
+        e = ref[i];
+        pq.push({
+          app: app2,
+          token: e
+        });
+      }
+      async.map(pq, rswithcache.get, function(err, resp) {
+        var k, len1;
+        resp.length.should.equal(500);
+        for (i = k = 0, len1 = resp.length; k < len1; i = ++k) {
+          e = resp[i];
+          e.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
+          e.id.should.equal("bulkuser_" + i);
+        }
+        done();
+      });
+    });
+    it('Get 500 sessions for app2 again: succeed (from cache)', function(done) {
+      var e, i, j, len, pq, ref;
+      pq = [];
+      ref = bulksessions.slice(0, 500);
+      for (i = j = 0, len = ref.length; j < len; i = ++j) {
+        e = ref[i];
+        pq.push({
+          app: app2,
+          token: e
+        });
+      }
+      async.map(pq, rswithcache.get, function(err, resp) {
+        var k, len1;
+        resp.length.should.equal(500);
+        for (i = k = 0, len1 = resp.length; k < len1; i = ++k) {
+          e = resp[i];
+          e.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
+          e.id.should.equal("bulkuser_" + i);
+        }
+        done();
+      });
+    });
+    it('Wait 2s', function(done) {
+      setTimeout(done, 2000);
+    });
+    return it('Get 500 sessions for app2: succeed (NOT from cache)', function(done) {
+      var e, i, j, len, pq, ref;
+      pq = [];
+      ref = bulksessions.slice(0, 500);
+      for (i = j = 0, len = ref.length; j < len; i = ++j) {
+        e = ref[i];
+        pq.push({
+          app: app2,
+          token: e
+        });
+      }
+      async.map(pq, rswithcache.get, function(err, resp) {
+        var k, len1;
+        resp.length.should.equal(500);
+        for (i = k = 0, len1 = resp.length; k < len1; i = ++k) {
+          e = resp[i];
+          e.should.have.keys('id', 'r', 'w', 'ttl', 'idle', 'ip');
+          e.id.should.equal("bulkuser_" + i);
+        }
         done();
       });
     });

@@ -40,6 +40,24 @@ With Redis running on the same machine as the test script (run via `npm test`) o
 * Gets those 1000 sessions and validates them in around 80ms.
 * Removes those 1000 sessions in 8ms.
 
+## Cache (optional setting)
+
+Note: If you want to use the `cachetime` option you must not supply the `client` option.
+
+Modern apps might also use a lot of requests while a user is active. This results in a lot of Redis requests to look up sessions. What's faster than an in-memory cache in Redis? An in-memory cache right in your app! 
+When you enable caching you can speed up session lookups by a lot. Consider the following before you enable it:
+
+### How does the cache work
+
+* The reply to the `get()` method will be cached for the time specified in the `cachetime` option.
+* Every `set()` or `kill*` method will flush the cache.
+* The `idle` and `r` keys that will be returned will not change for cached sessions. 
+
+### What would be a good value for the `cachetime` option?
+
+If your sessions last for 24h and the average user-session is 20m. You might as well set the `cachetime` to around 30m.
+Consider the size of your session object that has to be kept in memory. Setting the `cachetime` lower is ok. Because after all it just takes a quick Redis request to fill your cache again.
+
 ## Use via REST
 
 See [rest-sessions](https://github.com/smrchy/rest-sessions).
@@ -55,13 +73,13 @@ RedisSessions = require("redis-sessions");
 //
 // e.g. rs = new RedisSession({host:"192.168.0.20"});
 //
-// `port`: *optional* Default: 6379. The Redis port.
-// `host`, *optional* Default: "127.0.0.1". The Redis host.
+// `port`: *optional* Default: `6379`. The Redis port.
+// `host`, *optional* Default: `127.0.0.1`. The Redis host.
 // `options`, *optional* Default: {}. Additional options. See: https://github.com/mranney/node_redis#rediscreateclientport-host-options
-// `namespace`: *optional* Default: "rs". The namespace prefix for all Redis keys used by this module.
-// `wipe`: *optional* Default: 600. The interval in seconds after which expired sessions are wiped. Only values `0` or greater than `10` allowed. Set to `0` to disable.
+// `namespace`: *optional* Default: `rs`. The namespace prefix for all Redis keys used by this module.
+// `wipe`: *optional* Default: `600`. The interval in seconds after which expired sessions are wiped. Only values `0` or greater than `10` allowed. Set to `0` to disable.
 // `client`: *optional* An external RedisClient object which will be used for the connection.
-//
+// `cachetime`: *optional*  Default: `0`. Number of seconds to cache sessions in memory. Can only be used if no `client` is supplied. See the "Cache" section.
 rs = new RedisSessions();
 
 rsapp = "myapp";
@@ -75,7 +93,7 @@ Parameters:
 * `id` (String) The user id of this user. Note: There can be multiple sessions for the same user id. If the user uses multiple client devices.
 * `ip` (String) IP address of the user. This is used to show all ips from which the user is logged in.
 * `ttl` (Number) *optional* The "Time-To-Live" for the session in seconds. Default: 7200.
-* `d` (Object) *optional* Additional data to set for this sessions. (see the "set" method)
+* `d` (Object) *optional* Additional data to set for this sessions. (see the "set" method). Default: `{}`
 * `no_resave` (Boolean) *optional* If set to `true` the session will not be refreshed on session use. Instead it will run out exactly after the defined `ttl`. Default: `false`
 
 ```javascript

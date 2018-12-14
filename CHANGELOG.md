@@ -1,4 +1,9 @@
-# CHANGELOG
+# C
+
+## 2.1.0
+
+* Feature: New `cachetime` option to cache the responses for `get()`. (Issue #38) 
+* Updated docs and tests
 
 ## 2.0.3
 

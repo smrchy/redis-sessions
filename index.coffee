@@ -12,9 +12,10 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ###
 
-_ 				= require "lodash"
-RedisInst 		= require "redis"
-EventEmitter 	= require("events").EventEmitter
+_ = require "lodash"
+RedisInst = require "redis"
+EventEmitter = require("events").EventEmitter
+NodeCache = require "node-cache"
 
 # # RedisSessions
 #
@@ -25,12 +26,13 @@ EventEmitter 	= require("events").EventEmitter
 #
 #	Parameters:
 #
-#	`port`: *optional* Default: 6379. The Redis port.
-#	`host`, *optional* Default: "127.0.0.1". The Redis host.
-#	`options`, *optional* Default: {}. Additional options. See [https://github.com/mranney/node_redis#rediscreateclientport-host-options](redis.createClient))
-#	`namespace`: *optional* Default: "rs". The namespace prefix for all Redis keys used by this module.
-#	`wipe`: *optional* Default: 600. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
+#	`port`: *optional* Default: `6379`. The Redis port.
+#	`host`, *optional* Default: `127.0.0.1`. The Redis host.
+#	`options`, *optional* Default: `{}`. Additional options. See [https://github.com/mranney/node_redis#rediscreateclientport-host-options](redis.createClient))
+#	`namespace`: *optional* Default: `rs`. The namespace prefix for all Redis keys used by this module.
+#	`wipe`: *optional* Default: `600`. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
 #	`client`: *optional* An external RedisClient object which will be used for the connection.
+#	`cachetime` (Number) *optional* Number of seconds to cache sessions in memory. Can only be used if no `client` is supplied. See the "Cache" section. Default: `0`.
 #
 class RedisSessions extends EventEmitter
 
@@ -40,19 +42,22 @@ class RedisSessions extends EventEmitter
 		@redisns = o.namespace or "rs"
 		@redisns = @redisns + ":"
 		@wiperinterval = null
+		@sessioncache = null
+		@iscache = false
+		isclient = false
 		if o.client?.constructor?.name is "RedisClient"
+			isclient = true
 			@redis = o.client
 		else if o.options and o.options.url
 			@redis = RedisInst.createClient(o.options)
 		else
 			@redis = RedisInst.createClient(o.port or 6379, o.host or "127.0.0.1", o.options or {})
-	
+
 		@connected = @redis.connected or false
 		@redis.on "connect", =>
 			@connected = true
 			@emit( "connect" )
 			return
-
 
 		@redis.on "error", ( err ) =>
 			if err.message.indexOf( "ECONNREFUSED" )
@@ -63,6 +68,30 @@ class RedisSessions extends EventEmitter
 				@emit( "error" )
 			return
 
+		if o.cachetime
+			if isclient
+				console.log("Warning: Caching is disabled. Must not supply `client` option")
+			else
+				o.cachetime = parseInt(o.cachetime, 10)
+				if o.cachetime > 0
+					# Setup node-cache
+					@sessioncache = new NodeCache({
+						stdTTL: o.cachetime
+						useClones: false
+					})
+					# Setup the Redis subscriber to listen for changes
+					if o.options and o.options.url
+						redissub = RedisInst.createClient(o.options)
+					else
+						redissub = RedisInst.createClient(o.port or 6379, o.host or "127.0.0.1", o.options or {})
+					# Setup the listener for change messages
+					redissub.on "message", (c, m) =>
+						# Message will only contain a `{app}:{token}` string. Just delete it from node-cache.
+						@sessioncache.del(m)
+						return
+					# Setup the subscriber
+					@iscache = true
+					redissub.subscribe("#{@redisns}cache")
 		if o.wipe isnt 0
 			wipe = o.wipe or 600
 			if wipe < 10
@@ -179,7 +208,14 @@ class RedisSessions extends EventEmitter
 		options = @_validate(options, ["app", "token"], cb)
 		if options is false
 			return
-		thekey = "#{@redisns}#{options.app}:#{options.token}"
+		cachekey = "#{options.app}:#{options.token}"
+		if @iscache and not options._nocache
+			# Try to find the session in cache
+			cache = @sessioncache.get(cachekey)
+			if cache isnt undefined
+				cb(null, cache)
+				return
+		thekey = "#{@redisns}#{cachekey}"
 		@redis.hmget thekey, "id", "r", "w", "ttl", "d", "la", "ip", "no_resave", (err, resp) =>
 			if err
 				cb(err)
@@ -189,6 +225,8 @@ class RedisSessions extends EventEmitter
 			if o is null
 				cb(null, {})
 				return
+			if @iscache
+				@sessioncache.set(cachekey, o)
 			# Secret switch to disable updating the stats - we don't need this when we kill a session
 			if options._noupdate
 				cb(null, o)
@@ -267,6 +305,8 @@ class RedisSessions extends EventEmitter
 			["del", "#{@redisns}#{options.app}:#{options.token}"]
 			["exists", "#{@redisns}#{options.app}:us:#{options.id}"]
 		]
+		if @iscache
+			mc.push(["publish", "#{@redisns}cache", "#{options.app}:#{options.token}"])
 		@redis.multi(mc).exec (err, resp) =>
 			if err
 				cb(err)
@@ -325,6 +365,9 @@ class RedisSessions extends EventEmitter
 				["del"].concat(ussets)
 				["del"].concat(tokenkeys)
 			]
+			if @iscache
+				for e in resp
+					mc.push(["publish", "#{@redisns}cache", "#{options.app}:#{e.split(":")[0]}"])
 			@redis.multi(mc).exec (err, resp) ->
 				if err
 					cb(err)
@@ -362,6 +405,8 @@ class RedisSessions extends EventEmitter
 				mc.push(["srem", "#{@redisns}#{options.app}:us:#{options.id}", token])
 				mc.push(["zrem", "#{@redisns}SESSIONS", "#{options.app}:#{token}:#{options.id}"])
 				mc.push(["del", "#{@redisns}#{options.app}:#{token}"])
+				if @iscache
+					mc.push(["publish", "#{@redisns}cache", "#{options.app}:#{token}"])
 			mc.push(["exists", "#{@redisns}#{options.app}:us:#{options.id}"])
 
 			@redis.multi(mc).exec (err, resp) =>
@@ -426,6 +471,7 @@ class RedisSessions extends EventEmitter
 		if options is false
 			return
 		options._noupdate = true
+		options._nocache = true
 		# Get the session
 		@get options, (err, resp) =>
 			if err
@@ -458,7 +504,8 @@ class RedisSessions extends EventEmitter
 			else
 				mc.push(["hdel", thekey, "d"])
 				resp = _.omit(resp, "d")
-
+			if @iscache
+				mc.push(["publish", "#{@redisns}cache", "#{options.app}:#{options.token}"])
 			@redis.multi(mc).exec (err, reply) ->
 				if err
 					cb(err)
@@ -469,7 +516,6 @@ class RedisSessions extends EventEmitter
 				return
 			return
 		return
-
 
 	# ## Session of App
 	#
@@ -613,7 +659,7 @@ class RedisSessions extends EventEmitter
 		id:	/^(.*?){1,128}$/
 		ip:	/^.{1,39}$/
 		token: /^([a-zA-Z0-9]){64}$/
-                    
+
 	_validate: (o, items, cb) ->
 		for item in items
 			switch item

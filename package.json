@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "lodash": "^4.17.11",
+    "node-cache": "^4.2.0",
     "redis": "^2.x"
   },
   "devDependencies": {
