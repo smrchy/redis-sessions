@@ -5,22 +5,22 @@
   "license": "MIT",
   "author": "P. Liess <smrchy+npm@gmail.com>",
   "engines": {
-    "node": "> 0.10.20"
+    "node": "> 8"
   },
   "scripts": {
     "build": "./node_modules/.bin/coffee -cb index.coffee && ./node_modules/.bin/coffee -cb test/test.coffee",
     "test": "node --expose-internals node_modules/.bin/mocha ./test/test.js"
   },
   "dependencies": {
-    "lodash": "^4.17.11",
-    "node-cache": "^4.2.0",
-    "redis": "^2.x"
+    "lodash": "^4.17.15",
+    "node-cache": "^5.1.1",
+    "redis": "^3.0.2"
   },
   "devDependencies": {
-    "coffeescript": "^1.12.7",
-    "async": "^2.x",
-    "mocha": "^5.2.0",
-    "should": "11.1.0"
+    "coffeescript": "^2.5.1",
+    "async": "^3.2.0",
+    "mocha": "^8.0.1",
+    "should": "13.2.3"
   },
   "keywords": [
     "sessions",
@@ -32,5 +32,11 @@
   "repository": {
     "type": "git",
     "url": "http://github.com/smrchy/redis-sessions.git"
+  },
+  "mocha": {
+    "bail": true,
+    "slow": 5,
+    "timeout": 8000,
+    "reporter": "spec"
   }
 }

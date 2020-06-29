@@ -1,4 +1,11 @@
-# C
+# CHANGELOG
+
+## 3.0.0
+
+* Dropped suppoer for Node 4 and Node 6
+* Added test support for Node 12
+* Updated all dependencies
+* Added LICENSE.md file
 
 ## 2.1.0
 
