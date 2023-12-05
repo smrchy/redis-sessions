@@ -189,7 +189,7 @@ class RedisSessions extends EventEmitter {
 
 	public create = (options: {app: string; id: string; ip: string; ttl: number; d?: Record<string, unknown>; no_resave?: boolean}, cb: Function) => {
 		options.d = options.d || { ___duMmYkEy: null };
-		const optionsEval = this.validate(options, [
+		const optionsEval = this._validate(options, [
 			"app",
 			"id",
 			"ip",
@@ -378,6 +378,8 @@ class RedisSessions extends EventEmitter {
 				cb(null,{});
 				return;
 			}
+			done();
+			return;
 		} catch (error) {
 			cb(error);
 		}
@@ -393,4 +395,402 @@ class RedisSessions extends EventEmitter {
 		// 	return
 		// return
 		}
+	/* Kill
+	
+	Kill a session for an app and token.
+	
+	**Parameters:**
+	
+	An object with the following keys:
+	
+	* `app` must be [a-zA-Z0-9_-] and 3-20 chars long
+	* `token` must be [a-zA-Z0-9] and 64 chars long
+	*/
+
+	public kill= (options:{app:string,token:string}, cb:Function) =>{
+		const optionsEval = this._validate(options, ["app", "token"], cb)
+		if (optionsEval === false){
+			return
+		}
+		optionsEval._noupdate = true
+		this.get(options, (err: Error, resp:Record<string,unknown>) =>{
+			if(err){
+				cb(err);
+				return
+			}
+			if(!resp.id){
+				cb(null, { kill: 0 })
+				return
+			}
+			optionsEval.id = resp.id
+			this._kill(optionsEval, cb)
+			return})
+		return
+	}
+
+	/* Helper to _kill a single session
+	
+	Used by @kill and @wipe
+	
+	Needs options.app, options.token and options.id
+	*/
+
+	private _kill= (options:{app:string,token:string,id:string}, cb:Function) =>{
+		const mc = [
+			["zrem", `${this.redisns}${options.app}:_sessions`, "#{options.token}:#{options.id}"],
+			["srem", `${this.redisns}${options.app}:us:${options.id}`, options.token],
+			["zrem", `${this.redisns}SESSIONS`, `${options.app}:${options.token}:${options.id}`],
+			["del", `${this.redisns}${options.app}:${options.token}`],
+			["exists", `${this.redisns}${options.app}:us:${options.id}`]
+		]
+		if (this.isCache){
+			mc.push(["publish", "#{@redisns}cache", "#{options.app}:#{options.token}"])
+		}
+		try {
+			const resp= await this.redis.multiExecutor(mc);
+			if (resp[4]===0) {
+				try {
+					this.redis.zRem(`${this.redisns}${options.app}:_users`, options.id);
+				} catch (error) {
+					cb(error);
+					return;
+				}
+			}
+		} catch (error) {
+			cb(error)
+			return
+		}
+		// redis.multi(mc).exec (err, resp) =>
+		// 	if err
+		// 		cb(err)
+		// 		return
+		// 	// NOW. If the last reply of the multi statement is 0 then this was the last session.
+		// 	// We need to remove the ZSET for this user also:
+		// 	if resp[4] is 0
+		// 		@redis.zrem "#{@redisns}#{options.app}:_users", options.id, ->
+		// 			if err
+		// 				cb(err)
+		// 				return
+		// 			cb(null, { kill: resp[3] })
+		// 			return
+		// 	else
+		// 		cb(null, { kill: resp[3] })
+		// 	return
+		return
+	}
+
+	/* Killall
+	
+	Kill all sessions of a single app
+	
+	Parameters:
+	
+	* `app` must be [a-zA-Z0-9_-] and 3-20 chars long
+	*/
+	public killall= (options:{app:string;}, cb:Function) =>{
+		const optionsEval = this._validate(options, ["app"], cb)
+		if (optionsEval === false){
+			return
+		}
+		// First we need to get all sessions of the app
+		const appsessionkey = `${this.redisns}${options.app}:_sessions`
+		const appuserkey = `${this.redisns}${options.app}:_users`
+		try {
+			const resp = await this.redis.zRange(appsessionkey,0,-1);
+			if(!resp.length){
+				cb(null, { kill: 0 })
+				return
+			}
+			const globalkeys = []
+			const tokenkeys = []
+			let userkeys = []
+			for(const e in resp){
+				const thekey = e.split(":")
+				globalkeys.push(`${options.app}:${e}`)
+				tokenkeys.push(`${this.redisns}${options.app}:${thekey[0]}`)
+				userkeys.push(thekey[1])
+			}
+			userkeys = _.uniq(userkeys)
+			const ussets: string[] = [];
+			for(const e in userkeys){
+				ussets.push(`${this.redisns}${options.app}:us:${e}`);
+			}
+			const mc = [
+				["zrem", appsessionkey].concat(resp),
+				["zrem", appuserkey].concat(userkeys),
+				["zrem", `${this.redisns}SESSIONS`].concat(globalkeys),
+				["del"].concat(ussets),
+				["del"].concat(tokenkeys)
+			]
+			if (this.isCache){
+				for( const e in resp){
+					mc.push(["publish", `${this.redisns}cache`, `${options.app}:${e.split(":")[0]}`])
+				}
+			}
+			try {
+				const resp = await this.redis.multiExecutor(mc);
+				cb(null,{kill:resp[0]})
+			} catch (error) {
+				cb(error)
+			}
+			return
+		} catch (error) {
+			cb(error)
+		}
+		return
+	}
+
+	/* Kill all Sessions of Id
+	#
+	# Kill all sessions of a single id within an app
+	#
+	# Parameters:
+	#
+	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
+	# * `id` must be [a-zA-Z0-9_-] and 1-64 chars long
+	*/
+	public killsoid= (options:{app:string,id:string}, cb: Function) =>{
+		const optionsEval = this._validate(options, ["app", "id"], cb)
+		if(optionsEval === false){
+			return
+		}
+		try {
+			const resp = await this.redis.sMembers(`${this.redisns}${options.app}:us:${options.id}`);
+			if (!resp.length) {
+				cb(null, { kill: 0 })
+				return
+			}
+			const mc: string[][] = []
+			// Grab all sessions we need to get
+			for(const token in resp){
+				// Add to the multi commands array
+				mc.push(["zrem", `${this.redisns}${options.app}:_sessions`, `${token}:${options.id}`]);
+				mc.push(["srem", `${this.redisns}${options.app}:us:${options.id}`, token])
+				mc.push(["zrem", `${this.redisns}SESSIONS`, `${options.app}:${token}:${options.id}`])
+				mc.push(["del", `${this.redisns}${options.app}:${token}`])
+				if(this.isCache){
+					mc.push(["publish", `${this.redisns}cache`, `${options.app}:${token}`])
+				}
+			}
+			mc.push(["exists", `${this.redisns}${options.app}:us:${options.id}`])
+
+			try {
+				const response = await this.redis.multiExecutor(mc);
+				// get the amount of deleted sessions
+
+				let total=0;
+				const ref = response.slice(3)
+				for(let k=0;k<ref.length;k+=4){
+					// string parse stuff TODO
+					const e = ref[k];
+					total+=e;
+				}
+
+				// NOW. If the last reply of the multi statement is 0 then this was the last session.
+				// We need to remove the ZSET for this user also:
+				if (_.last(resp) === 0) {
+					await this.redis.zRem(`#{@redisns}${options.app}:_users`, options.id);
+					cb(null, { kill: total })
+					return
+				}
+				else{
+					cb(null, { kill: total })
+				}
+			} catch (error) {
+				cb(error)
+			}
+		} catch (error) {
+			cb(error)
+		}
+		return
+	}
+
+	// Ping
+	//
+	// Ping the Redis server
+	public ping(cb:Function) {
+		cb(await this.redis.ping());
+	}
+
+	// Quit
+	//
+	// Quit the Redis connection
+	// This is needed if Redis-Session is used with AWS Lambda.
+	public quit = () =>{
+		if (this.wiperInterval !== null){
+			clearInterval(this.wiperInterval)
+		}
+		this.redis.quit()
+		return
+	}
+
+	/* Set
+	
+	 Set/Update/Delete custom data for a single session.
+	 All custom data is stored in the `d` object which is a simple hash object structure.
+	
+	 `d` might contain **one or more** keys with the following types: `string`, `number`, `boolean`, `null`.
+	 Keys with all values except `null` will be stored. If a key containts `null` the key will be removed.
+	
+	 Note: If `d` already contains keys that are not supplied in the set request then these keys will be untouched.
+	
+	 **Parameters:**
+	
+	 An object with the following keys:
+	
+	 * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
+	 * `token` must be [a-zA-Z0-9] and 64 chars long
+	 * `d` must be an object with keys whose values only consist of strings, numbers, boolean and null.
+	*/
+
+	public set = (options:{
+		app:string,
+		token:string,
+		d: Record<string,string|number|boolean|null>
+	}, cb:Function) =>{
+		const optionsEval = this._validate(options, ["app", "token", "d", "no_resave"], cb)
+		if (optionsEval === false){
+			return
+		}
+		optionsEval._noupdate = true
+		optionsEval._nocache = true
+		// Get the session
+		this.get(options, (err:Error, resp: Record<string,unknown>) =>{
+			if (err){
+				cb(err)
+				return
+			}
+			if (!resp.id){
+				cb( null, {})
+				return
+			}
+
+			// Cleanup `d`
+			const nullkeys:string[] = []
+			for (const e of Object.keys(options.d))
+				if (options.d[e] === null){
+					nullkeys.push(e)
+				}
+			// OK ready to set some data
+			if (resp.d){
+				resp.d = _.extend(_.omit(resp.d, nullkeys), _.omit(options.d, nullkeys))
+			}
+			else{
+				resp.d = _.omit(options.d, nullkeys)
+			}
+			// We now have a cleaned version of resp.d ready to save back to Redis.
+			// If resp.d contains no keys we want to delete the `d` key within the hash though.
+			const thekey = `${@redisns}${options.app}:${options.token}`
+			const mc = this._createMultiStatement(options.app, options.token, resp.id, resp.ttl, resp.no_resave)
+			mc.push(["hincrby", thekey, "w", 1])
+			// Only update the `la` (last access) value if more than 1 second idle
+			if (resp.idle > 1){
+				mc.push(["hset", thekey, "la", this._now()])
+			}
+			if (_.keys(resp.d).length){
+				mc.push(["hset", thekey, "d", JSON.stringify(resp.d)])
+			}
+			else{
+				mc.push(["hdel", thekey, "d"])
+				resp = _.omit(resp, "d")
+			}
+			if(this.isCache){
+
+				mc.push(["publish", `${this.redisns}cache`, `${options.app}:${options.token}`])
+			}
+			try {
+				const reply = this.redis.multiExecutor(mc);
+				resp.w=reply[3];
+				cb(null,resp);
+			} catch (error) {
+				cb(error);
+			}
+			return
+		})
+		return
+	}
+
+	/* Session of App
+	
+	 Returns all sessions of a single app that were active within the last *n* seconds
+	 Note: This might return a lot of data depending on `dt`. Use with care.
+	
+	 **Parameters:**
+	
+	 * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
+	 * `dt` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
+	*/
+
+	public soapp= (options, cb) =>{
+		if (this._validate(options, ["app", "dt"], cb) === false){
+			return
+		}
+		try {
+			// TODO https://redis.io/commands/zrevrangebyscore/
+			const resp = await this.redis.zRange(`${this.redisns}${options.app}:_sessions`, this._now() - options.dt, "+inf",{
+				BY: "SCORE",
+				REV: true
+			});
+			const result: string[]= []
+			for(const e in resp){
+				result.push(e.split(':')[0])
+			}
+			this._returnSessions(options, result, cb)
+		} catch (error) {
+			cb(error)
+		}
+		return
+	}
+
+	/* Sessions of ID (soid)
+	
+	 Returns all sessions of a single id
+	
+	 **Parameters:**
+	
+	 An object with the following keys:
+	
+	 * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
+	 * `id` must be [a-zA-Z0-9_-] and 1-64 chars long
+	*/
+
+	public soid = (options, cb) =>{
+		if (this._validate(options, ["app", "dt"], cb) === false){
+			return
+		}
+		try {
+			const resp = await this.redis.sMembers(`${this.redisns}${options.app}:us:${options.id}`);
+			this._returnSessions(options, resp, cb)
+		} catch (error) {
+			cb(error)
+		}
+		return
+	}
+
+	// Helpers
+
+	private _createMultiStatement= (app:string, token:string, id:string, ttl:string, no_resave:boolean) =>{
+		const now = this._now()
+		const o = [
+			["zadd", `${this.redisns}${app}:_sessions`, now, `${token}:${id}`],
+			["zadd", `${this.redisns}${app}:_users`, now, id],
+			["zadd", `${this.redisns}SESSIONS`, now + ttl, `${app}:${token}:${id}`]
+		]
+		if (no_resave){
+			o.push(["hset", `${this.redisns}${app}:${token}`, "ttl", ttl])
+		}
+		return o
+	}
+
+	private _createToken=() =>{
+		let t = ""
+		// Note we don't use Z as a valid character here
+		const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYabcdefghijklmnopqrstuvwxyz0123456789"
+		for(const i in [0...55])
+			t += possible.charAt(Math.floor(Math.random() * possible.length))
+
+		// add the current time in ms to the very end seperated by a Z
+		t + 'Z' + new Date().getTime().toString(36)}
+
+
 }
