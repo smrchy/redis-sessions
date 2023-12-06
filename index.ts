@@ -1,5 +1,5 @@
 
-import _ from "lodash";
+import _, { forEach } from "lodash";
 
 import RedisInst from "redis";
 import type { RedisClientOptions, RedisClientType } from "redis";
@@ -9,7 +9,7 @@ import { EventEmitter } from "node:events";
 import NodeCache from "node-cache";
 import type RedisClient from "@redis/client/dist/lib/client";
 
-interface Options {
+interface ConstructorOptions {
 	port?: number;
 	host?: string;
 	options?: RedisClientOptions; // maybe something else
@@ -17,6 +17,17 @@ interface Options {
 	wipe: number;
 	client: RedisClientType;// maybe something else
 	cachetime: number;
+}
+
+interface EvaluatedOption {
+	app:string;
+	token?:string;
+	id?:string;
+	ip?:string;
+	ttl?:number;
+	no_resave?:boolean;
+	d?: Record<string,string|number|boolean|null>;
+	dt?:number;
 }
 
 /** RedisSessions
@@ -44,10 +55,11 @@ class RedisSessions extends EventEmitter {
 	private connected: boolean;
 	private sessionCache: NodeCache|null = null;
 	private wiperInterval: ReturnType<typeof setInterval>|null = null;
-	constructor(o: Options) {
+	private _ERRORS: Record<string,string>;
+	constructor(o: ConstructorOptions) {
 		super();
-		// TODO check later function
-		this.initErrors();
+		// TODO check later function 
+		this._initErrors();
 		this.redisns = o.namespace ?? "rs";
 		this.redisns += ":";
 
@@ -139,7 +151,7 @@ class RedisSessions extends EventEmitter {
 	* `dt` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
 	*/
 	public activity = async (options: {app: string; dt: number}, cb: Function) => {
-		if (this.validate(options, ["app", "dt"], cb) === false) {
+		if (this._validate(options, ["app", "dt"], cb) === false) {
 			// return;
 			throw new Error("Please use correct parameters");
 		}
@@ -786,11 +798,207 @@ class RedisSessions extends EventEmitter {
 		let t = ""
 		// Note we don't use Z as a valid character here
 		const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYabcdefghijklmnopqrstuvwxyz0123456789"
-		for(const i in [0...55])
+		for(let i=0;i<56;i++) {
 			t += possible.charAt(Math.floor(Math.random() * possible.length))
+		}
 
 		// add the current time in ms to the very end seperated by a Z
-		t + 'Z' + new Date().getTime().toString(36)}
+		t + 'Z' + new Date().getTime().toString(36)
+	}
 
+	private _handleError= (cb:Function, err:Error|string, data = {}) =>{
+		// try to create a error Object with humanized message
+		if( _.isString(err)){
+			const _err = new Error()
+			_err.name = err
+			_err.message = this._ERRORS?[err]?(data)| "unkown";
+		} else{
+			const _err = err
+			cb(_err)
+		}
+		return
+	}
+
+	private _initErrors= ()=>{
+		this._ERRORS = {}
+		for (const [key, msg] of this.ERRORS){
+			this._ERRORS[key] = _.template(msg)
+		}
+		return
+	}
+
+	private _now(){
+		return parseInt(""+(Date.now()/1000),10);
+	}
+
+	private _prepareSession(session){
+		const now = this._now();
+		if (session[0] === null) {
+			return null
+		}
+		// Create the return object
+		const o = {
+			id: session[0],
+			r: Number(session[1]),
+			w: Number(session[2]),
+			ttl: Number(session[3]),
+			idle: now - session[5],
+			ip: session[6],
+		};
+		// Oh wait. If o.ttl < o.idle we need to bail out.
+		if (o.ttl < o.idle){
+			// We return an empty session object
+			return null
+		}
+		// Support for `no_resave` #36
+		if (session[7] === "1"){
+			o.no_resave = true
+			o.ttl = o.ttl - o.idle
+		}
+		// Parse the content of `d`
+		if(session[4]){
+			o.d = JSON.parse(session[4])
+		}
+		return o
+	} 
+
+	private _returnSessions(options, sessions, cb) {
+		if (!sessions.length){
+			cb(null, { sessions: [] })
+			return
+		}
+		const mc: string[][] = []
+		for (const e in sessions){
+			mc.push(["hmget", `${this.redisns}${options.app}:${e}`, "id", "r", "w", "ttl", "d", "la", "ip", "no_resave"])
+		}
+		try {
+			const resp = await this.redis.multiExecutor(mc);
+			const o = []
+			for(const e of resp){
+				const session = this._prepareSession(e)
+				if(session){
+					o.push(session)
+				}
+				cb(null, {sessions:o})
+			}
+		} catch (error) {
+			cb(error);
+		}
+		return
+	}
+
+	// Validation regex used by _validate
+	private VALID = {
+		app: /^([a-zA-Z0-9_-]){3,20}$/,
+		id:	/^(.*?){1,128}$/,
+		ip:	/^.{1,39}$/,
+		token: /^([a-zA-Z0-9]){64}$/
+	}
+
+	private _validate(o:EvaluatedOption, items:string[], cb:Function) {
+		const optionEval:EvaluatedOption = {
+			app:"",
+			
+		}
+		for (const item of items){
+			switch (item) {
+				case "app":
+				case "id":
+				case "ip":
+				case "token":
+					const value = o[item];
+					if(!value){
+						this._handleError(cb, "missingParameter", { item: item })
+						return false
+					}
+					optionEval[item] = value.toString()
+					if ( this.VALID[item].test(value)){
+						this._handleError(cb, "invalidFormat", { item: item })
+						return false
+					}
+					break;
+				case "ttl":
+					optionEval.ttl = parseInt(o.ttl ? `${o.ttl}`:"7200", 10)
+					if (_.isNaN(optionEval.ttl) || !_.isNumber(optionEval.ttl) || optionEval.ttl < 10){
+						this._handleError(cb, "invalidValue", { msg: "ttl must be a positive integer >= 10" })
+						return false
+					}
+					break;
+				case "no_resave":
+					if (o.no_resave === true){
+						optionEval.no_resave = true
+					}else {
+						optionEval.no_resave = false
+					}
+					break;
+				case "dt":
+					// TODO check if typescrpts fault or my fault dt instad of [item]
+					optionEval.dt = parseInt(`${o[item]}`, 10)
+					if (_.isNaN(optionEval[item])|| !_.isNumber(optionEval[item]) || optionEval.dt < 10){
+						this._handleError(cb, "invalidValue", { msg: "ttl must be a positive integer >= 10" })
+						return false
+					}
+					break;
+				case "d":
+					if (!o[item]){
+						this._handleError(cb, "missingParameter", { item: item })
+						return false
+					}
+					if (!_.isObject(o.d) || _.isArray(o.d)){
+						this._handleError(cb, "invalidValue", { msg: "d must be an object" })
+						return false
+					}
+					const keys = _.keys(o.d)
+					if (! keys.length){
+						this._handleError(cb, "invalidValue", { msg: "d must containt at least one key." })
+						return false
+					}
+					// Check if every key is either a boolean, string or a number
+					for(const e of Object.keys(o.d)){
+						if (!_.isString(o.d[e]) && _.isNumber(o.d[e]) && !_.isBoolean(o.d[e]) && !_.isNull(o.d[e])){
+							this._handleError(cb, "invalidValue", { msg: "d.#{e} has a forbidden type. Only strings, numbers, boolean and null are allowed." })
+							return false
+						}
+					}
+					break;
+				default:
+					break;
+			}
+		}
+		return optionEval;
+	}
+
+	// Wipe old sessions
+	//
+	// Called by internal housekeeping every `options.wipe` seconds
+	private _wipe(){
+		const that = this;
+		try {
+			const resp = await this.redis.zRangeByScore(`${this.redisns}SESSIONS`, "-inf", this._now())
+			if (!resp.length) {
+				resp.forEach((element)=>{
+					const e = element.split(":");
+					const options = {
+						app: e[0],
+						token: e[1],
+						id: e[2]
+					}
+					that._kill(options,()=>{});
+				})
+			}
+		} catch (error) {
+			console.log(error)
+			return
+		}
+		return
+	}
+
+	public ERRORS = {
+		"missingParameter": "No <%= item %> supplied",
+		"invalidFormat": "Invalid <%= item %> format",
+		"invalidValue": "<%= msg %>",
+	}
 
 }
+
+	module.exports = RedisSessions

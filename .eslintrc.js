@@ -8,7 +8,7 @@ module.exports = {
 		es2023: true
 	},
 	parser: "@typescript-eslint/parser",
-	ignorePatterns: [".eslintrc.*"],
+	ignorePatterns: [".eslintrc.*","index.js"],
 	parserOptions: {
 		project: "./tsconfig.json",
 		sourceType: "module",

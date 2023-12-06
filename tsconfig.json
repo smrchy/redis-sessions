@@ -111,7 +111,7 @@
       "/res/*.json"
 	],
 	"include": [
-	  "./*.ts",
-	]
+		"index.ts",
+		]
   }
   
