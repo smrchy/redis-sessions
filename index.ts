@@ -1,8 +1,8 @@
 
-import _, { forEach } from "lodash";
+import _ from "lodash";
 
 import RedisInst from "redis";
-import type { RedisClientOptions, RedisClientType } from "redis";
+import type { RedisClientOptions, RedisClientType, } from "redis";
 
 import { EventEmitter } from "node:events";
 
@@ -30,6 +30,17 @@ interface EvaluatedOption {
 	dt?:number;
 }
 
+interface Session {
+	id: string;
+	r: number;
+	w: number;
+	ttl: number;
+	idle: number;
+	ip: string;
+	d?: Record<string,string|boolean|number|null>;
+	no_resave?:boolean;
+}
+
 /** RedisSessions
 
  To create a new instance use:
@@ -52,6 +63,7 @@ class RedisSessions extends EventEmitter {
 	private redisns: string;
 	private isCache = false;
 	private redis: ReturnType<typeof RedisInst.createClient>;
+	// maybe public 
 	private connected: boolean;
 	private sessionCache: NodeCache|null = null;
 	private wiperInterval: ReturnType<typeof setInterval>|null = null;
@@ -199,7 +211,7 @@ class RedisSessions extends EventEmitter {
 	Returns the token when successful.
 	*/
 
-	public create = (options: {app: string; id: string; ip: string; ttl: number; d?: Record<string, unknown>; no_resave?: boolean}, cb: Function) => {
+	public create = (options: {app: string; id: string; ip: string; ttl: number; d?: Record<string, string|number|boolean|null>; no_resave?: boolean}, cb: Function) => {
 		options.d = options.d || { ___duMmYkEy: null };
 		const optionsEval = this._validate(options, [
 			"app",
@@ -215,29 +227,19 @@ class RedisSessions extends EventEmitter {
 		const token = this._createToken();
 		// Prepopulate the multi statement
 		const mc = this._createMultiStatement(options.app, token, options.id, options.ttl, false);
-		mc.push([
-			"sadd",
-			"#{@redisns}#{options.app}:us:#{options.id}",
-			token
-		]);
+		mc.sAdd(`${this.redisns}${options.app}:us:${options.id}`,token);
 		// Create the default session hash
-		let thesession = [
-			"hmset",
-			"#{@redisns}#{options.app}:#{token}",
-			"id",
-			options.id,
-			"r",
-			1,
-			"w",
-			1,
-			"ip",
-			options.ip,
-			"la",
-			this._now(),
-			"ttl",
+		let thesession: Record<string,string|number>= {
+			// "hmset",
+			// `${this.redisns}${options.app}:${token}`,
+			id:options.id,
+			r:1 ,
+			w:1 ,
+			ip:options.ip ,
+			la:this._now(),
+			ttl:options.ttl
 			// parseInt(options.ttl),
-			options.ttl
-		];
+		};
 		if (options.d) {
 			// Remove null values
 			const nullkeys = [];
@@ -248,31 +250,17 @@ class RedisSessions extends EventEmitter {
 				options.d = _.omit(options.d, nullkeys);
 			}
 			if (_.keys(options.d).length > 0) {
-				thesession = [
-					...thesession,
-					"d",
-					JSON.stringify(options.d)
-				];
+				thesession.d=JSON.stringify(options.d);
 			}
 		}
 		// Check for `no_resave` #36
 		if (options.no_resave) {
-			thesession.push("no_resave", 1);
+			thesession.no_resave=1;
 		}
-		mc.push(thesession);
-		// Run the redis statement
-		// this.redis.multi(mc).exec (err, resp) ->
-		// 	if err
-		// 		cb(err)
-		// 		return
-		// 	if resp[4] isnt "OK"
-		// 		cb("Unknow error")
-		// 		return
-		// 	cb(null, { token: token })
-		// 	return
-		// return
+		mc.hSet(`${this.redisns}${options.app}:${token}`,thesession);
 		try {
-			const resp = this.redis.multiExecutor(mc);
+			// Run the redis statement
+			const resp = await mc.exec();
 			cb(resp);
 		} catch (error) {
 			cb(error);
@@ -292,13 +280,13 @@ class RedisSessions extends EventEmitter {
 	* `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	* `token` must be [a-zA-Z0-9] and 64 chars long
 	*/
-	public get = (options: {app: string; token: string; _nochache?: boolean}, cb: Function) => {
+	public get = (options: {app: string; token: string; }, cb: Function) => {
 		const optionsEval = this._validate(options, ["app", "token"], cb);
 		if (optionsEval === false) {
 			return;
 		}
 		const cachekey = `${options.app}:${options.token}`;
-		if (this.isCache && !options._nocache) {
+		if (this.isCache && !optionsEval._nocache) {
 			// Try to find the session in cache
 			const cache = this.sessionCache.get(cachekey);
 			if (cache !== undefined) {
@@ -308,7 +296,7 @@ class RedisSessions extends EventEmitter {
 		}
 		const thekey = `${this.redisns}${cachekey}`;
 		try {
-			const resp = this.redis.hmGet(thekey, [
+			const resp = await this.redis.hmGet(thekey, [
 				"id",
 				"r",
 				"w",
@@ -327,7 +315,7 @@ class RedisSessions extends EventEmitter {
 				this.sessionCache.set(cachekey, o);
 			}
 			// Secret switch to disable updating the stats - we don't need this when we kill a session
-			if(options._noupdate){
+			if(optionsEval._noupdate){
 				cb(null, o)
 				return
 			}
@@ -335,7 +323,7 @@ class RedisSessions extends EventEmitter {
 			const mc = this._createMultiStatement(options.app, options.token, o.id, o.ttl, o.no_resave)
 			mc.push(["hincrby", thekey, "r", 1])
 			if (o.idle > 1){
-				mc.push(["hset", thekey, "la", @_now()])
+				mc.push(["hset", thekey, "la", this._now()])
 			}
 			try {
 				const response = await this.redis.multiExecutor(mc);
@@ -347,38 +335,11 @@ class RedisSessions extends EventEmitter {
 		} catch (error) {
 			cb(error);
 		}
-		// this.redis.hmget thekey, "id", "r", "w", "ttl", "d", "la", "ip", "no_resave", (err, resp) =>
-		// 	if err
-		// 		cb(err)
-		// 		return
-		// 	// Prepare the data
-		// 	o = @_prepareSession(resp)
-		// 	if o is null
-		// 		cb(null, {})
-		// 		return
-		// 	if @iscache
-		// 		@sessioncache.set(cachekey, o)
-		// 	# Secret switch to disable updating the stats - we don't need this when we kill a session
-		// 	if options._noupdate
-		// 		cb(null, o)
-		// 		return
-		// 	# Update the counters
-		// 	mc = @_createMultiStatement(options.app, options.token, o.id, o.ttl, o.no_resave)
-		// 	mc.push(["hincrby", thekey, "r", 1])
-		// 	if o.idle > 1
-		// 		mc.push(["hset", thekey, "la", @_now()])
-		// 	@redis.multi(mc).exec (err, resp) ->
-		// 		if err
-		// 			cb(err)
-		// 			return
-		// 		cb(null, o)
-		// 		return
-		// 	return
-		// return
 		return;
 	};
 
-	private _no_resave_check = (session, options, cb, done) =>{
+	// TODO patrick fragen ob man die braucht
+	private _no_resave_check(session:Session, options:{app:string,token:string}, cb:Function, done:Function) {
 		if ( !session.no_resave){
 			done()
 			return
@@ -395,17 +356,6 @@ class RedisSessions extends EventEmitter {
 		} catch (error) {
 			cb(error);
 		}
-		// @redis.zscore "#{@redisns}SESSIONS", "#{options.app}:#{options.token}:#{session.id}", (err, resp) =>
-		// 	if err
-		// 		cb(err)
-		// 		return
-		// 	if resp is null or resp < @_now()
-		// 		# Session has run out.
-		// 		cb(null, {})
-		// 		return
-		// 	done()
-		// 	return
-		// return
 		}
 	/* Kill
 	
@@ -418,7 +368,7 @@ class RedisSessions extends EventEmitter {
 	* `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	* `token` must be [a-zA-Z0-9] and 64 chars long
 	*/
-
+	// TODO after get
 	public kill= (options:{app:string,token:string}, cb:Function) =>{
 		const optionsEval = this._validate(options, ["app", "token"], cb)
 		if (optionsEval === false){
@@ -448,18 +398,17 @@ class RedisSessions extends EventEmitter {
 	*/
 
 	private _kill= (options:{app:string,token:string,id:string}, cb:Function) =>{
-		const mc = [
-			["zrem", `${this.redisns}${options.app}:_sessions`, "#{options.token}:#{options.id}"],
-			["srem", `${this.redisns}${options.app}:us:${options.id}`, options.token],
-			["zrem", `${this.redisns}SESSIONS`, `${options.app}:${options.token}:${options.id}`],
-			["del", `${this.redisns}${options.app}:${options.token}`],
-			["exists", `${this.redisns}${options.app}:us:${options.id}`]
-		]
+		const mc = this.redis.multi();
+		mc.zRem(`${this.redisns}${options.app}:_sessions`, `${options.token}:${options.id}`)
+		mc.sRem(`${this.redisns}${options.app}:us:${options.id}`, options.token)
+		mc.zRem(`${this.redisns}SESSIONS`, `${options.app}:${options.token}:${options.id}`)
+		mc.del(`${this.redisns}${options.app}:${options.token}`)
+		mc.exists(`${this.redisns}${options.app}:us:${options.id}`)
 		if (this.isCache){
-			mc.push(["publish", "#{@redisns}cache", "#{options.app}:#{options.token}"])
+			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`)
 		}
 		try {
-			const resp= await this.redis.multiExecutor(mc);
+			const resp= await mc.exec();
 			if (resp[4]===0) {
 				try {
 					this.redis.zRem(`${this.redisns}${options.app}:_users`, options.id);
@@ -472,22 +421,7 @@ class RedisSessions extends EventEmitter {
 			cb(error)
 			return
 		}
-		// redis.multi(mc).exec (err, resp) =>
-		// 	if err
-		// 		cb(err)
-		// 		return
-		// 	// NOW. If the last reply of the multi statement is 0 then this was the last session.
-		// 	// We need to remove the ZSET for this user also:
-		// 	if resp[4] is 0
-		// 		@redis.zrem "#{@redisns}#{options.app}:_users", options.id, ->
-		// 			if err
-		// 				cb(err)
-		// 				return
-		// 			cb(null, { kill: resp[3] })
-		// 			return
-		// 	else
-		// 		cb(null, { kill: resp[3] })
-		// 	return
+		
 		return
 	}
 
@@ -527,20 +461,21 @@ class RedisSessions extends EventEmitter {
 			for(const e in userkeys){
 				ussets.push(`${this.redisns}${options.app}:us:${e}`);
 			}
-			const mc = [
-				["zrem", appsessionkey].concat(resp),
-				["zrem", appuserkey].concat(userkeys),
-				["zrem", `${this.redisns}SESSIONS`].concat(globalkeys),
-				["del"].concat(ussets),
-				["del"].concat(tokenkeys)
-			]
+			// TODO still c heck if comands execute ptoperly
+			const mc = this.redis.multi();
+			mc.zRem(appsessionkey,resp);
+			mc.zRem (appuserkey,userkeys)
+			mc.zRem (`${this.redisns}SESSIONS`,globalkeys)
+			mc.del(ussets)
+			mc.del(tokenkeys)
+
 			if (this.isCache){
 				for( const e in resp){
-					mc.push(["publish", `${this.redisns}cache`, `${options.app}:${e.split(":")[0]}`])
+					mc.publish(`${this.redisns}cache`, `${options.app}:${e.split(":")[0]}`)
 				}
 			}
 			try {
-				const resp = await this.redis.multiExecutor(mc);
+				const resp = await mc.exec();
 				cb(null,{kill:resp[0]})
 			} catch (error) {
 				cb(error)
@@ -572,22 +507,22 @@ class RedisSessions extends EventEmitter {
 				cb(null, { kill: 0 })
 				return
 			}
-			const mc: string[][] = []
+			const mc = this.redis.multi();
 			// Grab all sessions we need to get
 			for(const token in resp){
-				// Add to the multi commands array
-				mc.push(["zrem", `${this.redisns}${options.app}:_sessions`, `${token}:${options.id}`]);
-				mc.push(["srem", `${this.redisns}${options.app}:us:${options.id}`, token])
-				mc.push(["zrem", `${this.redisns}SESSIONS`, `${options.app}:${token}:${options.id}`])
-				mc.push(["del", `${this.redisns}${options.app}:${token}`])
+				// Add the multi commands
+				mc.zRem(`${this.redisns}${options.app}:_sessions`, `${token}:${options.id}`);
+				mc.sRem (`${this.redisns}${options.app}:us:${options.id}`, token);
+				mc.zRem(`${this.redisns}SESSIONS`, `${options.app}:${token}:${options.id}`);
+				mc.del(`${this.redisns}${options.app}:${token}`)
 				if(this.isCache){
-					mc.push(["publish", `${this.redisns}cache`, `${options.app}:${token}`])
+					mc.publish(`${this.redisns}cache`, `${options.app}:${token}`)
 				}
 			}
-			mc.push(["exists", `${this.redisns}${options.app}:us:${options.id}`])
+			mc.exists(`${this.redisns}${options.app}:us:${options.id}`)
 
 			try {
-				const response = await this.redis.multiExecutor(mc);
+				const response = await mc.exec();
 				// get the amount of deleted sessions
 
 				let total=0;
@@ -595,13 +530,17 @@ class RedisSessions extends EventEmitter {
 				for(let k=0;k<ref.length;k+=4){
 					// string parse stuff TODO
 					const e = ref[k];
-					total+=e;
+					if (typeof e === "number") {
+						total+=e;
+					} else {
+						// TODO maybe error
+					}
 				}
 
 				// NOW. If the last reply of the multi statement is 0 then this was the last session.
 				// We need to remove the ZSET for this user also:
-				if (_.last(resp) === 0) {
-					await this.redis.zRem(`#{@redisns}${options.app}:_users`, options.id);
+				if (_.last(response) === 0) {
+					await this.redis.zRem(`${this.redisns}${options.app}:_users`, options.id);
 					cb(null, { kill: total })
 					return
 				}
@@ -654,11 +593,12 @@ class RedisSessions extends EventEmitter {
 	 * `token` must be [a-zA-Z0-9] and 64 chars long
 	 * `d` must be an object with keys whose values only consist of strings, numbers, boolean and null.
 	*/
-
+	// TODO Look at afetr get
 	public set = (options:{
 		app:string,
 		token:string,
-		d: Record<string,string|number|boolean|null>
+		d: Record<string,string|number|boolean|null>,
+		// TODO fragen ob no resave hieer möglich
 	}, cb:Function) =>{
 		const optionsEval = this._validate(options, ["app", "token", "d", "no_resave"], cb)
 		if (optionsEval === false){
@@ -667,7 +607,7 @@ class RedisSessions extends EventEmitter {
 		optionsEval._noupdate = true
 		optionsEval._nocache = true
 		// Get the session
-		this.get(options, (err:Error, resp: Record<string,unknown>) =>{
+		this.get(optionsEval, (err:Error, resp: Record<string,unknown>) =>{
 			if (err){
 				cb(err)
 				return
@@ -692,26 +632,26 @@ class RedisSessions extends EventEmitter {
 			}
 			// We now have a cleaned version of resp.d ready to save back to Redis.
 			// If resp.d contains no keys we want to delete the `d` key within the hash though.
-			const thekey = `${@redisns}${options.app}:${options.token}`
+			const thekey = `${this.redisns}${options.app}:${options.token}`
 			const mc = this._createMultiStatement(options.app, options.token, resp.id, resp.ttl, resp.no_resave)
-			mc.push(["hincrby", thekey, "w", 1])
+			mc.hIncrBy(thekey, "w", 1)
 			// Only update the `la` (last access) value if more than 1 second idle
 			if (resp.idle > 1){
-				mc.push(["hset", thekey, "la", this._now()])
+				mc.hSet(thekey, "la", this._now())
 			}
 			if (_.keys(resp.d).length){
-				mc.push(["hset", thekey, "d", JSON.stringify(resp.d)])
+				mc.hSet(thekey, "d", JSON.stringify(resp.d))
 			}
 			else{
-				mc.push(["hdel", thekey, "d"])
+				mc.hDel(thekey, "d")
 				resp = _.omit(resp, "d")
 			}
 			if(this.isCache){
 
-				mc.push(["publish", `${this.redisns}cache`, `${options.app}:${options.token}`])
+				mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`)
 			}
 			try {
-				const reply = this.redis.multiExecutor(mc);
+				const reply = mc.exec();
 				resp.w=reply[3];
 				cb(null,resp);
 			} catch (error) {
@@ -733,7 +673,10 @@ class RedisSessions extends EventEmitter {
 	 * `dt` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
 	*/
 
-	public soapp= (options, cb) =>{
+	public soapp= (options:{
+		app:string,
+		dt:number
+	}, cb:Function) =>{
 		if (this._validate(options, ["app", "dt"], cb) === false){
 			return
 		}
@@ -766,8 +709,8 @@ class RedisSessions extends EventEmitter {
 	 * `id` must be [a-zA-Z0-9_-] and 1-64 chars long
 	*/
 
-	public soid = (options, cb) =>{
-		if (this._validate(options, ["app", "dt"], cb) === false){
+	public soid = (options:{app:string,id:string}, cb:Function) =>{
+		if (this._validate(options, ["app", "id"], cb) === false){
 			return
 		}
 		try {
@@ -781,17 +724,16 @@ class RedisSessions extends EventEmitter {
 
 	// Helpers
 
-	private _createMultiStatement= (app:string, token:string, id:string, ttl:string, no_resave:boolean) =>{
+	private _createMultiStatement= (app:string, token:string, id:string, ttl:number, no_resave?:boolean) =>{
 		const now = this._now()
-		const o = [
-			["zadd", `${this.redisns}${app}:_sessions`, now, `${token}:${id}`],
-			["zadd", `${this.redisns}${app}:_users`, now, id],
-			["zadd", `${this.redisns}SESSIONS`, now + ttl, `${app}:${token}:${id}`]
-		]
+		const multi = this.redis.multi()
+		multi.zAdd(`${this.redisns}${app}:_sessions`, {score:now,value:`${token}:${id}`})
+		multi.zAdd(`${this.redisns}${app}:_users`,{score:now,value:id})
+		multi.zAdd(`${this.redisns}SESSIONS`, {score: now + ttl, value: `${app}:${token}:${id}`})
 		if (no_resave){
-			o.push(["hset", `${this.redisns}${app}:${token}`, "ttl", ttl])
+			multi.hSet(`${this.redisns}${app}:${token}`, "ttl", ttl)
 		}
-		return o
+		return multi
 	}
 
 	private _createToken=() =>{
@@ -804,6 +746,7 @@ class RedisSessions extends EventEmitter {
 
 		// add the current time in ms to the very end seperated by a Z
 		t + 'Z' + new Date().getTime().toString(36)
+		return t;
 	}
 
 	private _handleError= (cb:Function, err:Error|string, data = {}) =>{
@@ -831,18 +774,22 @@ class RedisSessions extends EventEmitter {
 		return parseInt(""+(Date.now()/1000),10);
 	}
 
-	private _prepareSession(session){
+	private _prepareSession(session:(string|null)[]){
 		const now = this._now();
 		if (session[0] === null) {
 			return null
 		}
+		if (session[6]===null) {
+			// TODO look up if this is needed
+			throw new Error("Unsure");
+		}
 		// Create the return object
-		const o = {
-			id: session[0],
+		const o:Session = {
+			id: session[0].toString(),
 			r: Number(session[1]),
 			w: Number(session[2]),
 			ttl: Number(session[3]),
-			idle: now - session[5],
+			idle: now - Number(session[5]),
 			ip: session[6],
 		};
 		// Oh wait. If o.ttl < o.idle we need to bail out.
@@ -862,25 +809,42 @@ class RedisSessions extends EventEmitter {
 		return o
 	} 
 
-	private _returnSessions(options, sessions, cb) {
+	// TODO refine options maybe
+	private _returnSessions(options:{app:string}, sessions:string[], cb:Function) {
 		if (!sessions.length){
 			cb(null, { sessions: [] })
 			return
 		}
-		const mc: string[][] = []
+		const mc = this.redis.multi();
 		for (const e in sessions){
-			mc.push(["hmget", `${this.redisns}${options.app}:${e}`, "id", "r", "w", "ttl", "d", "la", "ip", "no_resave"])
+			mc.hmGet(`${this.redisns}${options.app}:${e}`,[ "id", "r", "w", "ttl", "d", "la", "ip", "no_resave"])
 		}
 		try {
-			const resp = await this.redis.multiExecutor(mc);
+			const resp = await mc.exec();
 			const o = []
 			for(const e of resp){
-				const session = this._prepareSession(e)
-				if(session){
-					o.push(session)
+				if (Array.isArray(e)) {
+					// TODO typeing into number|string|null|
+					const result: (string|null)[] = []
+					for(const reply of e){
+						// maybe check for buffer?
+						if (typeof reply === "string"||typeof reply ==="boolean") {
+							result.push(reply.toString());
+						} else if(reply === null){
+							result.push(reply);
+						} else {
+							// should not happen maybe throw error;
+						}
+					}
+					const session = this._prepareSession(result)
+					if(session){
+						o.push(session)
+					}
+				} else {
+					// TODO dont know how this can happen but propably error
 				}
-				cb(null, {sessions:o})
 			}
+			cb(null, {sessions:o})
 		} catch (error) {
 			cb(error);
 		}
@@ -898,7 +862,6 @@ class RedisSessions extends EventEmitter {
 	private _validate(o:EvaluatedOption, items:string[], cb:Function) {
 		const optionEval:EvaluatedOption = {
 			app:"",
-			
 		}
 		for (const item of items){
 			switch (item) {
