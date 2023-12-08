@@ -7,9 +7,10 @@
   "scripts": {
     "build": "./node_modules/.bin/coffee -cb index.coffee && ./node_modules/.bin/coffee -cb test/test.coffee",
     "test": "node --expose-internals node_modules/.bin/mocha ./test/test.js",
+    "testTS": "node --expose-internals node_modules/.bin/mocha ./dist/test/test.js",
     "lint": "eslint",
     "watch": "tsc -w",
-    "buildTs": "tsc"
+    "buildTS": "tsc"
   },
   "dependencies": {
     "lodash": "^4.17.21",
@@ -17,18 +18,19 @@
     "redis": "^4.6.11"
   },
   "devDependencies": {
-    "@types/node": "^20.6.2",
     "@types/lodash": "^4.14.202",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.6.2",
+    "@types/statuses": "^2.0.4",
+    "@types/toidentifier": "^1.0.2",
     "@typescript-eslint/eslint-plugin": "^6.5.0",
     "async": "^3.2.0",
     "coffeescript": "^2.5.1",
     "eslint": "8.52.0",
     "eslint-plugin-jsdoc": "^46.5.1",
     "eslint-plugin-unicorn": "^49.0.0",
-    "nodemon": "^3.0.1",
-    "@types/statuses": "^2.0.4",
-    "@types/toidentifier": "^1.0.2",
     "mocha": "^10.2.0",
+    "nodemon": "^3.0.1",
     "should": "13.2.3",
     "typescript": "^5.2.2",
     "typescript-eslint": "^0.0.1-alpha.0"

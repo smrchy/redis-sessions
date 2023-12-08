@@ -112,6 +112,7 @@
 	],
 	"include": [
 		"index.ts",
-		]
+		"test/test.ts"
+	]
   }
   
