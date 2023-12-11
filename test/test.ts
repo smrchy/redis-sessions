@@ -1,7 +1,10 @@
 import _ from "lodash";
 import RedisSessions from "../index";
-import type { Session } from "../index";
 import should from "should";
+import { setTimeout } from "node:timers/promises";
+
+import { PendingSuiteFunction } from "mocha";
+import type { Session } from "../index";
 
 const tokenReg = /^([\dA-Za-z]){64}$/;
 const testToken = "NIxwHyNScshj9B5g95OcrzETD9D4KayzcOnAbgiB7Cv7PxJRlK4miIAeZlpwgc6p2";
@@ -19,7 +22,7 @@ function test() {
 
 describe("Redis-Sessions Test", function () {
 	let rs: RedisSessions;
-	let rswithcache;
+	let rswithcache: RedisSessions;
 	const app1 = "test";
 	const app2 = "TEST";
 	let token1 = "";
@@ -44,6 +47,14 @@ describe("Redis-Sessions Test", function () {
 		rs.should.be.an.instanceOf(RedisSessions);
 		done();
 	});
+	it("get a RedisSessions instance", function (done) {
+		rswithcache = new RedisSessions({
+			cachetime: 2
+		});
+		rs.should.be.an.instanceOf(RedisSessions);
+		done();
+	});
+
 	describe("GET: Part 1", function () {
 		it("Ping the redis server", async function () {
 			const resp = await rs.ping();
@@ -245,8 +256,8 @@ describe("Redis-Sessions Test", function () {
 			resp.should.have.keys("token");
 			token5 = resp.token;
 		});
-		it("Wait 6s", function (done) {
-			setTimeout(done, 6000);
+		it("Wait 6s", async function () {
+			await setTimeout(6000);
 		});
 		it("Create a session for another app with valid data: should return a token", async function () {
 			const resp = await rs.create({
@@ -384,8 +395,8 @@ describe("Redis-Sessions Test", function () {
 				should.equal(resp.no_resave, true);
 			}
 		});
-		it("Wait 6s", function (done) {
-			setTimeout(done, 6000);
+		it("Wait 6s", async function () {
+			await setTimeout(6000);
 		});
 		it("Get the Session for token2: Should be gone", async function () {
 			const resp = await rs.get({
@@ -434,7 +445,10 @@ describe("Redis-Sessions Test", function () {
 				resp.should.have.keys("id", "r", "w", "ttl", "idle", "ip", "d");
 				resp.id.should.equal("user1");
 				resp.ttl.should.equal(30);
-				should.equal(resp.d.foo, "bar");
+				should.exist(resp.d);
+				if (resp.d) {
+					should.equal(resp.d.foo, "bar");
+				}
 			}
 		});
 	});
@@ -456,7 +470,6 @@ describe("Redis-Sessions Test", function () {
 				await rs.set({ app: app1, token: token1, d: [12, "bla"] });
 				throw new Error("Test Failed");
 			} catch (error) {
-				console.log(error);
 				const err = error as Error;
 				err.message.should.equal("d must be an object");
 			}
@@ -538,7 +551,9 @@ describe("Redis-Sessions Test", function () {
 			if (resp !== null) {
 				resp.should.be.an.Object();
 				should.exist(resp.d);
-				resp.d.should.have.keys("hi", "count", "premium");
+				if (resp.d) {
+					resp.d.should.have.keys("hi", "count", "premium");
+				}
 			}
 		});
 		it("Remove a param from token3: should work", async function () {
@@ -547,7 +562,10 @@ describe("Redis-Sessions Test", function () {
 			if (resp !== null) {
 				resp.should.be.an.Object();
 				resp.id.should.equal("user1");
-				resp.d.should.have.keys("count", "premium");
+				should.exist(resp.d);
+				if (resp.d) {
+					resp.d.should.have.keys("count", "premium");
+				}
 			}
 		});
 		it("Get the session for token3: should work and contain modified values", async function () {
@@ -558,7 +576,10 @@ describe("Redis-Sessions Test", function () {
 			should.notEqual(resp, null);
 			if (resp !== null) {
 				resp.should.be.an.Object();
-				resp.d.should.have.keys("count", "premium");
+				should.exist(resp.d);
+				if (resp.d) {
+					resp.d.should.have.keys("count", "premium");
+				}
 			}
 		});
 		it("Remove all remaining params from token3: should work", async function () {
@@ -607,13 +628,16 @@ describe("Redis-Sessions Test", function () {
 			if (resp !== null) {
 				resp.should.be.an.Object();
 				resp.id.should.equal("user1");
-				resp.should.not.have.keys("d");
-				resp.d.should.have.keys("a", "b", "c", "d");
-				if (resp.d.a && resp.d.b && resp.d.c && resp.d.d) {
-					resp.d.a.should.equal("sometext");
-					resp.d.b.should.equal(20);
-					resp.d.c.should.equal(true);
-					resp.d.d.should.equal(false);
+				resp.should.have.keys("d");
+				should.exist(resp.d);
+				if (resp.d) {
+					resp.d.should.have.keys("a", "b", "c", "d");
+					if (resp.d.a && resp.d.b && resp.d.c && resp.d.d) {
+						resp.d.a.should.equal("sometext");
+						resp.d.b.should.equal(20);
+						resp.d.c.should.equal(true);
+						resp.d.d.should.equal(false);
+					}
 				}
 			}
 		});
@@ -627,14 +651,17 @@ describe("Redis-Sessions Test", function () {
 			if (resp !== null) {
 				resp.should.be.an.Object();
 				resp.id.should.equal("user1");
-				resp.should.not.have.keys("d");
-				resp.d.should.have.keys("a", "b", "c", "d", "e");
-				if (resp.d.a && resp.d.b && resp.d.c && resp.d.d && resp.d.e) {
-					resp.d.a.should.equal(false);
-					resp.d.b.should.equal("some_text");
-					resp.d.c.should.equal(20);
-					resp.d.d.should.equal(true);
-					resp.d.e.should.equal(20.212);
+				resp.should.have.keys("d");
+				should.exist(resp.d);
+				if (resp.d) {
+					resp.d.should.have.keys("a", "b", "c", "d", "e");
+					if (resp.d.a && resp.d.b && resp.d.c && resp.d.d && resp.d.e) {
+						resp.d.a.should.equal(false);
+						resp.d.b.should.equal("some_text");
+						resp.d.c.should.equal(20);
+						resp.d.d.should.equal(true);
+						resp.d.e.should.equal(20.212);
+					}
 				}
 			}
 		});
@@ -647,18 +674,195 @@ describe("Redis-Sessions Test", function () {
 			if (resp !== null) {
 				resp.should.be.an.Object();
 				resp.id.should.equal("user1");
-				resp.should.not.have.keys("d");
-				resp.d.should.have.keys("a", "b", "c", "d", "e");
-				if (resp.d.a && resp.d.b && resp.d.c && resp.d.d && resp.d.e) {
-					resp.d.a.should.equal(false);
-					resp.d.b.should.equal("some_text");
-					resp.d.c.should.equal(20);
-					resp.d.d.should.equal(true);
-					resp.d.e.should.equal(20.212);
+				resp.should.have.keys("d");
+				should.exist(resp.d);
+				if (resp.d) {
+					resp.d.should.have.keys("a", "b", "c", "d", "e");
+					if (resp.d.a && resp.d.b && resp.d.c && resp.d.d && resp.d.e) {
+						resp.d.a.should.equal(false);
+						resp.d.b.should.equal("some_text");
+						resp.d.c.should.equal(20);
+						resp.d.d.should.equal(true);
+						resp.d.e.should.equal(20.212);
+					}
 				}
 			}
 		});
 	});
+
+	describe("CACHE", function () {
+		it("Get token3: should work", async function () {
+			const resp = await rswithcache.get({ app: app2, token: token3 });
+			should.notEqual(resp, null);
+			if (resp !== null) {
+				resp.r.should.equal(6);
+			}
+		});
+		it("Get token3: should work, but from cache", async function () {
+			const resp = await rswithcache.get({ app: app2, token: token3 });
+			should.notEqual(resp, null);
+			if (resp !== null) {
+				resp.r.should.equal(6);
+			}
+		});
+		it("Wait 2.1s", async function () {
+			await setTimeout(2100);
+		});
+		it("Get token3: should work, not from cache", async function () {
+			const resp = await rswithcache.get({ app: app2, token: token3 });
+			should.notEqual(resp, null);
+			if (resp !== null) {
+				resp.r.should.equal(7);
+			}
+		});
+		it("Modify the params for token3: should work, should flush cache", async function () {
+			const resp = await rswithcache.set({
+				app: app2, token: token3, d: {
+					a: null, b: "some_text2", c: 30, d: false, e: 20.5
+				}
+			});
+			should.notEqual(resp, null);
+			if (resp !== null) {
+				resp.should.be.an.Object();
+				should.exist(resp.d);
+				if (resp.d) {
+					resp.d.should.have.keys("b", "c", "d", "e");
+					should.not.exist(resp.d.a);
+					if (resp.d.b && resp.d.c && resp.d.d && resp.d.e) {
+						resp.d.b.should.equal("some_text2");
+						resp.d.c.should.equal(30);
+						resp.d.d.should.equal(false);
+						resp.d.e.should.equal(20.5);
+					}
+				}
+				// Delay the reply just a tiny bit in case Travis works slower
+				await setTimeout(20);
+			}
+		});
+		it("Get token3: should work, not from cache", async function () {
+			const resp = await rswithcache.get({ app: app2, token: token3 });
+			console.debug(resp);
+			should.notEqual(resp, null);
+			if (resp !== null) {
+				resp.r.should.equal(8);
+				should.exist(resp.d);
+				if (resp.d) {
+					should.exist(resp.d.c);
+					if (resp.d.c) {
+						resp.d.c.should.equal(30);
+					}
+				}
+			}
+		});
+		it("Get token3: should work, from cache", async function () {
+			const resp = await rswithcache.get({ app: app2, token: token3 });
+			should.notEqual(resp, null);
+			if (resp !== null) {
+				resp.r.should.equal(8);
+				should.exist(resp.d);
+				if (resp.d) {
+					should.exist(resp.d.c);
+					if (resp.d.c) {
+						resp.d.c.should.equal(30);
+					}
+				}
+			}
+		});
+		it("Get 500 sessions for app2: succeed (cache is empty)", async function () {
+			const pq = [];
+			const ref = bulksessions.slice(0, 500);
+			for (const e of ref) {
+				pq.push({
+					app: app2,
+					token: e
+				});
+			}
+			const response = [];
+			for (const element of pq) {
+				const resp = await rswithcache.get(element);
+				if (resp) {
+					response.push(resp);
+				}
+			}
+			response.length.should.equal(500);
+			for (const [k, e] of response.entries()) {
+				e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+				e.id.should.equal("bulkuser_" + k);
+			}
+		});
+		it("Get 500 sessions for app2: succeed (from cache)", async function () {
+			const pq = [];
+			const ref = bulksessions.slice(0, 500);
+			for (const e of ref) {
+				pq.push({
+					app: app2,
+					token: e
+				});
+			}
+			const response = [];
+			for (const element of pq) {
+				const resp = await rswithcache.get(element);
+				if (resp) {
+					response.push(resp);
+				}
+			}
+			response.length.should.equal(500);
+			for (const [k, e] of response.entries()) {
+				e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+				e.id.should.equal("bulkuser_" + k);
+			}
+		});
+		it("Get 500 sessions for app2 again: succeed (from cache)", async function () {
+			const pq = [];
+			const ref = bulksessions.slice(0, 500);
+			for (const e of ref) {
+				pq.push({
+					app: app2,
+					token: e
+				});
+			}
+			const response = [];
+			for (const element of pq) {
+				const resp = await rswithcache.get(element);
+				if (resp) {
+					response.push(resp);
+				}
+			}
+			response.length.should.equal(500);
+			for (const [k, e] of response.entries()) {
+				e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+				e.id.should.equal("bulkuser_" + k);
+
+			}
+		});
+		it("Wait 2s", async function () {
+			await setTimeout(2000);
+		});
+		it("Get 500 sessions for app2: succeed (NOT from cache)", async function () {
+			const pq = [];
+			const ref = bulksessions.slice(0, 500);
+			for (const e of ref) {
+				pq.push({
+					app: app2,
+					token: e
+				});
+			}
+			const response = [];
+			for (const element of pq) {
+				const resp = await rswithcache.get(element);
+				if (resp) {
+					response.push(resp);
+				}
+			}
+			response.length.should.equal(500);
+			for (const [k, e] of response.entries()) {
+				e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+				e.id.should.equal("bulkuser_" + k);
+
+			}
+		});
+	});
+
 
 
 	describe("CLEANUP", function () {
@@ -680,4 +884,3 @@ describe("Redis-Sessions Test", function () {
 	});
 
 });
-

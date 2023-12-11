@@ -39,7 +39,7 @@ export interface Session {
 	ttl: number;
 	idle: number;
 	ip: string;
-	d: Record<string, string|boolean|number|null>;
+	d?: Record<string, string|boolean|number|null>;
 	no_resave?: boolean;
 }
 
@@ -148,9 +148,10 @@ class RedisSessions extends EventEmitter {
 						}
 						return;
 					});
+					// TODO
 					// Setup the subscriber
 					this.isCache = true;
-					// redissub.subscribe("#{@redisns}cache")
+					// redissub.subscribe(`${@redisns}cache`)
 				}
 			}
 		}
@@ -416,6 +417,9 @@ class RedisSessions extends EventEmitter {
 		mc.exists(`${this.redisns}${options.app}:us:${options.id}`);
 		if (this.isCache) {
 			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
+			if (this.sessionCache) {
+				this.sessionCache.del(`${options.app}:${options.token}`);
+			}
 		}
 		try {
 
@@ -483,6 +487,9 @@ class RedisSessions extends EventEmitter {
 			if (this.isCache) {
 				for (const e of resp) {
 					mc.publish(`${this.redisns}cache`, `${options.app}:${e.split(":")[0]}`);
+					if (this.sessionCache) {
+						this.sessionCache.del(`${options.app}:${e.split(":")[0]}`);
+					}
 				}
 			}
 			try {
@@ -501,13 +508,13 @@ class RedisSessions extends EventEmitter {
 	}
 
 	/* Kill all Sessions of Id
-	#
-	# Kill all sessions of a single id within an app
-	#
-	# Parameters:
-	#
-	# * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
-	# * `id` must be [a-zA-Z0-9_-] and 1-64 chars long
+
+	Kill all sessions of a single id within an app
+
+	Parameters:
+
+	* `app` must be [a-zA-Z0-9_-] and 3-20 chars long
+	* `id` must be [a-zA-Z0-9_-] and 1-64 chars long
 	*/
 	public async killsoid(options: {app: string;id: string}) {
 		if (!this.connected) {
@@ -529,6 +536,9 @@ class RedisSessions extends EventEmitter {
 				mc.del(`${this.redisns}${options.app}:${token}`);
 				if (this.isCache) {
 					mc.publish(`${this.redisns}cache`, `${options.app}:${token}`);
+					if (this.sessionCache) {
+						this.sessionCache.del(`${options.app}:${token}`);
+					}
 				}
 			}
 			mc.exists(`${this.redisns}${options.app}:us:${options.id}`);
@@ -613,12 +623,11 @@ class RedisSessions extends EventEmitter {
 	 * `token` must be [a-zA-Z0-9] and 64 chars long
 	 * `d` must be an object with keys whose values only consist of strings, numbers, boolean and null.
 	*/
-	// TODO Look at afetr get
 	public async set(options: {
 		app: string;
 		token: string;
 		d: Record<string, string|number|boolean|null>;
-		// TODO fragen ob no resave hier möglich
+		no_resave?: boolean;
 	}) {
 		if (!this.connected) {
 			this.connected = await this.toConnect;
@@ -634,11 +643,11 @@ class RedisSessions extends EventEmitter {
 			app: options.app,
 			d: options.d,
 			token: options.token,
-			_no_update: true,
+			_noupdate: true,
 			_nocache: true
 		};
 		// Get the session
-		const resp = await this.get(getOptions);
+		let resp = await this.get(getOptions);
 		if (!resp) {
 			return null;
 		}
@@ -668,11 +677,13 @@ class RedisSessions extends EventEmitter {
 			mc.hSet(thekey, "d", JSON.stringify(resp.d));
 		} else {
 			mc.hDel(thekey, "d");
-			// resp = _.omit(resp, "d");
-			resp.d = {};
+			resp = _.omit(resp, "d");
 		}
 		if (this.isCache) {
 			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
+			if (this.sessionCache) {
+				this.sessionCache.del(`${options.app}:${options.token}`);
+			}
 		}
 		try {
 			const reply = await mc.exec();
@@ -815,8 +826,7 @@ class RedisSessions extends EventEmitter {
 			w: Number(session[2]),
 			ttl: Number(session[3]),
 			idle: now - Number(session[5]),
-			ip: "session[6]",
-			d: {}
+			ip: `${session[6]}`,
 		};
 		// Oh wait. If o.ttl < o.idle we need to bail out.
 		if (o.ttl < o.idle) {
@@ -942,7 +952,7 @@ class RedisSessions extends EventEmitter {
 					// Check if every key is either a boolean, string or a number
 					for (const e of Object.keys(o.d)) {
 						if (!_.isString(o.d[e]) && !_.isNumber(o.d[e]) && !_.isBoolean(o.d[e]) && !_.isNull(o.d[e])) {
-							throw this._handleError("invalidValue", { msg: "d.#{e} has a forbidden type. Only strings, numbers, boolean and null are allowed." });
+							throw this._handleError("invalidValue", { msg: `d.${e} has a forbidden type. Only strings, numbers, boolean and null are allowed.` });
 						}
 					}
 					break;
