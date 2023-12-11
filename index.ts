@@ -66,7 +66,6 @@ class RedisSessions extends EventEmitter {
 	private redisns: string;
 	private isCache = false;
 	private redis: ReturnType<typeof createClient>;
-	// maybe public TODO
 	private connected: boolean;
 	private toConnect: Promise<boolean>;
 	private sessionCache: LRUCache<string, Session>|null = null;
@@ -121,7 +120,7 @@ class RedisSessions extends EventEmitter {
 				if (o.cachetime > 0) {
 					// Setup node-cache
 					this.sessionCache = new LRUCache<string, Session>({
-						ttl: o.cachetime,
+						ttl: o.cachetime * 1000,
 						updateAgeOnGet: true,
 						ttlAutopurge: true
 					});
@@ -134,7 +133,13 @@ class RedisSessions extends EventEmitter {
 					// this.toConnect = this.connect(redissub);
 					// Setup the subscriber
 
-					this.toSubscribe = this.subscribe(redissub);
+					// this.toSubscribe = this.subscribe(redissub);
+					// redissub.subscribe(`${this.redisns}cache`, (message) => {
+					// 	if (this.sessionCache) {
+					// 		this.sessionCache.delete(message);
+					// 	}
+					// 	return;
+					// });
 
 				}
 			}
@@ -147,7 +152,6 @@ class RedisSessions extends EventEmitter {
 				wipe = 10;
 			}
 			this.wiperInterval = setInterval(this._wipe, wipe * 1000);
-			// TODO check later with function
 		}
 	}
 
@@ -296,12 +300,12 @@ class RedisSessions extends EventEmitter {
 		if (o === null) {
 			return null;
 		}
-		if (this.isCache && this.sessionCache) {
-			this.sessionCache.set(cachekey, o);
-		}
 		// Secret switch to disable updating the stats - we don't need this when we kill a session
 		if (options._noupdate) {
 			return o;
+		}
+		if (this.isCache && this.sessionCache) {
+			this.sessionCache.set(cachekey, o);
 		}
 		// Update the counters
 		const mc = this._createMultiStatement(options.app, options.token, o.id, o.ttl, o.no_resave);
@@ -317,25 +321,6 @@ class RedisSessions extends EventEmitter {
 
 	}
 
-	// TODO patrick fragen ob man die braucht
-	// private async _no_resave_check(session: Session, options: {app: string; token: string}, cb: Function, done: Function) {
-	// 	if (!session.no_resave) {
-	// 		done();
-	// 		return;
-	// 	}
-	// 	// Check if the session has run out
-	// 	try {
-	// 		const resp = await this.redis.zScore(`${this.redisns}SESSIONS`, `${options.app}:${options.token}:${session.id}`);
-	// 		if (resp === null || resp < this._now()) {
-	// 			cb(null, {});
-	// 			return;
-	// 		}
-	// 		done();
-	// 		return;
-	// 	} catch (error) {
-	// 		cb(error);
-	// 	}
-	// }
 	/* Kill
 
 	Kill a session for an app and token.
@@ -347,7 +332,6 @@ class RedisSessions extends EventEmitter {
 	* `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	* `token` must be [a-zA-Z0-9] and 64 chars long
 	*/
-	// TODO after get
 	public async kill(options: {app: string; token: string}) {
 		if (!this.connected) {
 			this.connected = await this.toConnect;
@@ -385,25 +369,16 @@ class RedisSessions extends EventEmitter {
 		mc.exists(`${this.redisns}${options.app}:us:${options.id}`);
 		if (this.isCache) {
 			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
-		}
-		try {
-
-			const resp = await mc.exec();
-			if (resp[4] === 0) {
-				try {
-					await this.redis.zRem(`${this.redisns}${options.app}:_users`, `${options.id}`);
-				} catch (error) {
-					// TODO
-					console.log(error);
-					throw error;
-				}
+			if (this.sessionCache) {
+				this.sessionCache.delete(`${options.app}:${options.token}`);
 			}
-			return { kill: resp[3] };
-		} catch (error) {
-			// TODO
-			console.log(error);
-			throw error;
 		}
+
+		const resp = await mc.exec();
+		if (resp[4] === 0) {
+			await this.redis.zRem(`${this.redisns}${options.app}:_users`, `${options.id}`);
+		}
+		return { kill: resp[3] };
 	}
 
 	/* Killall
@@ -422,51 +397,41 @@ class RedisSessions extends EventEmitter {
 		// First we need to get all sessions of the app
 		const appsessionkey = `${this.redisns}${options.app}:_sessions`;
 		const appuserkey = `${this.redisns}${options.app}:_users`;
-		try {
-			const resp = await this.redis.zRange(appsessionkey, 0, -1);
-			if (resp.length === 0) {
-				return { kill: 0 };
-			}
-			const globalkeys = [];
-			const tokenkeys = [];
-			let userkeys = [];
-			for (const e of resp) {
-				const thekey = e.split(":");
-				globalkeys.push(`${options.app}:${e}`);
-				tokenkeys.push(`${this.redisns}${options.app}:${thekey[0]}`);
-				userkeys.push(thekey[1]);
-			}
-			userkeys = _.uniq(userkeys);
-			const ussets: string[] = [];
-			for (const e of userkeys) {
-				ussets.push(`${this.redisns}${options.app}:us:${e}`);
-			}
-			// TODO still check if comands execute ptoperly
-			const mc = this.redis.multi();
-			mc.zRem(appsessionkey, resp);
-			mc.zRem(appuserkey, userkeys);
-			mc.zRem(`${this.redisns}SESSIONS`, globalkeys);
-			mc.del(ussets);
-			mc.del(tokenkeys);
+		const resp = await this.redis.zRange(appsessionkey, 0, -1);
+		if (resp.length === 0) {
+			return { kill: 0 };
+		}
+		const globalkeys = [];
+		const tokenkeys = [];
+		let userkeys = [];
+		for (const e of resp) {
+			const thekey = e.split(":");
+			globalkeys.push(`${options.app}:${e}`);
+			tokenkeys.push(`${this.redisns}${options.app}:${thekey[0]}`);
+			userkeys.push(thekey[1]);
+		}
+		userkeys = _.uniq(userkeys);
+		const ussets: string[] = [];
+		for (const e of userkeys) {
+			ussets.push(`${this.redisns}${options.app}:us:${e}`);
+		}
+		const mc = this.redis.multi();
+		mc.zRem(appsessionkey, resp);
+		mc.zRem(appuserkey, userkeys);
+		mc.zRem(`${this.redisns}SESSIONS`, globalkeys);
+		mc.del(ussets);
+		mc.del(tokenkeys);
 
-			if (this.isCache) {
-				for (const e of resp) {
-					mc.publish(`${this.redisns}cache`, `${options.app}:${e.split(":")[0]}`);
+		if (this.isCache) {
+			for (const e of resp) {
+				mc.publish(`${this.redisns}cache`, `${options.app}:${e.split(":")[0]}`);
+				if (this.sessionCache) {
+					this.sessionCache.delete(`${options.app}:${e.split(":")[0]}`);
 				}
 			}
-			try {
-				const resp = await mc.exec();
-				return { kill: resp[0] };
-			} catch (error) {
-				// TODO
-				console.log(error);
-				throw error;
-			}
-		} catch (error) {
-			// TODO
-			console.log(error);
-			throw error;
 		}
+		const response = await mc.exec();
+		return { kill: response[0] };
 	}
 
 	/* Kill all Sessions of Id
@@ -483,58 +448,48 @@ class RedisSessions extends EventEmitter {
 			this.connected = await this.toConnect;
 		}
 		this._validate(options, ["app", "id"]);
-		try {
-			const resp = await this.redis.sMembers(`${this.redisns}${options.app}:us:${options.id}`);
-			if (resp.length === 0) {
-				return { kill: 0 };
-			}
-			const mc = this.redis.multi();
-			// Grab all sessions we need to get
-			for (const token of resp) {
-				// Add the multi commands
-				mc.zRem(`${this.redisns}${options.app}:_sessions`, `${token}:${options.id}`);
-				mc.sRem(`${this.redisns}${options.app}:us:${options.id}`, token);
-				mc.zRem(`${this.redisns}SESSIONS`, `${options.app}:${token}:${options.id}`);
-				mc.del(`${this.redisns}${options.app}:${token}`);
-				if (this.isCache) {
-					mc.publish(`${this.redisns}cache`, `${options.app}:${token}`);
-				}
-			}
-			mc.exists(`${this.redisns}${options.app}:us:${options.id}`);
-
-			try {
-				const response = await mc.exec();
-				// get the amount of deleted sessions
-
-				let total = 0;
-				const ref = response.slice(3);
-				for (let k = 0; k < ref.length; k += 4) {
-					// string parse stuff TODO
-					const e = ref[k];
-					if (typeof e === "number") {
-						total += e;
-					} else {
-						// TODO maybe error
-					}
-				}
-
-				// NOW. If the last reply of the multi statement is 0 then this was the last session.
-				// We need to remove the ZSET for this user also:
-				if (response.at(-1) === 0) {
-					await this.redis.zRem(`${this.redisns}${options.app}:_users`, options.id);
-				}
-				return { kill: total };
-
-			} catch (error) {
-				// TODO
-				console.log(error);
-				throw error;
-			}
-		} catch (error) {
-			// TODO
-			console.log(error);
-			throw error;
+		const resp = await this.redis.sMembers(`${this.redisns}${options.app}:us:${options.id}`);
+		if (resp.length === 0) {
+			return { kill: 0 };
 		}
+		const mc = this.redis.multi();
+		// Grab all sessions we need to get
+		for (const token of resp) {
+			// Add the multi commands
+			mc.zRem(`${this.redisns}${options.app}:_sessions`, `${token}:${options.id}`);
+			mc.sRem(`${this.redisns}${options.app}:us:${options.id}`, token);
+			mc.zRem(`${this.redisns}SESSIONS`, `${options.app}:${token}:${options.id}`);
+			mc.del(`${this.redisns}${options.app}:${token}`);
+			if (this.isCache) {
+				mc.publish(`${this.redisns}cache`, `${options.app}:${token}`);
+				if (this.sessionCache) {
+					this.sessionCache.delete(`${options.app}:${token}`);
+				}
+			}
+		}
+		mc.exists(`${this.redisns}${options.app}:us:${options.id}`);
+
+		const response = await mc.exec();
+		// get the amount of deleted sessions
+
+		let total = 0;
+		const ref = response.slice(3);
+		for (let k = 0; k < ref.length; k += 4) {
+			const e = ref[k];
+			if (typeof e === "number") {
+				total += e;
+			} else {
+				// Don`t know if my fault but probably should be an Error
+				throw new TypeError("Critical Error in killsoid");
+			}
+		}
+
+		// NOW. If the last reply of the multi statement is 0 then this was the last session.
+		// We need to remove the ZSET for this user also:
+		if (response.at(-1) === 0) {
+			await this.redis.zRem(`${this.redisns}${options.app}:_users`, options.id);
+		}
+		return { kill: total };
 	}
 
 	// Ping
@@ -640,20 +595,17 @@ class RedisSessions extends EventEmitter {
 		}
 		if (this.isCache) {
 			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
-		}
-		try {
-			const reply = await mc.exec();
-			if (typeof reply[3] === "number") {
-				resp.w = reply[3];
-			} else {
-				throw new TypeError("Critikal Error Set Option");
+			if (this.sessionCache) {
+				this.sessionCache.delete(`${options.app}:${options.token}`);
 			}
-			return resp;
-		} catch (error) {
-			// TODO
-			console.log(error);
-			throw error;
 		}
+		const reply = await mc.exec();
+		if (typeof reply[3] === "number") {
+			resp.w = reply[3];
+		} else {
+			throw new TypeError("Critical Error Set Option");
+		}
+		return resp;
 	}
 
 	/* Session of App
@@ -672,24 +624,19 @@ class RedisSessions extends EventEmitter {
 			this.connected = await this.toConnect;
 		}
 		this._validate(options, ["app", "dt"]);
-		try {
-			// TODO https://redis.io/commands/zrevrangebyscore/
-			const resp = await this.redis.zRange(`${this.redisns}${options.app}:_sessions`, "+inf", this._now() - options.dt, {
-				BY: "SCORE",
-				REV: true
-			});
 
-			const result: string[] = [];
-			for (const e of resp) {
-				result.push(e.split(":")[0]);
-			}
+		// https://redis.io/commands/zrevrangebyscore/
+		const resp = await this.redis.zRange(`${this.redisns}${options.app}:_sessions`, "+inf", this._now() - options.dt, {
+			BY: "SCORE",
+			REV: true
+		});
 
-			return this._returnSessions(options, result);
-		} catch (error) {
-			// TODO
-			console.log(error);
-			throw error;
+		const result: string[] = [];
+		for (const e of resp) {
+			result.push(e.split(":")[0]);
 		}
+
+		return this._returnSessions(options, result);
 	}
 
 	/* Sessions of ID (soid)
@@ -709,16 +656,12 @@ class RedisSessions extends EventEmitter {
 			this.connected = await this.toConnect;
 		}
 		this._validate(options, ["app", "id"]);
-		try {
-			const resp = await this.redis.sMembers(`${this.redisns}${options.app}:us:${options.id}`);
-			return await this._returnSessions(options, resp);
-		} catch (error) {
-			console.log(error);
-			throw error;
-		}
+
+		const resp = await this.redis.sMembers(`${this.redisns}${options.app}:us:${options.id}`);
+		return await this._returnSessions(options, resp);
 	}
 
-	// handle redissun from constructor because of async
+	// handle redissub from constructor because of async
 	private async subscribe(redissub: ReturnType<typeof createClient>) {
 		await redissub.subscribe(`${this.redisns}cache`, (message) => {
 			if (this.sessionCache) {
@@ -756,7 +699,6 @@ class RedisSessions extends EventEmitter {
 		return t;
 	};
 
-	// TODO check why Types problems
 	private _handleError(err: "missingParameter"|"invalidFormat"|"invalidValue", data: {item: string}|{msg: string}) {
 		// try to create a error Object with humanized message
 		if (_.isString(err)) {
@@ -812,7 +754,6 @@ class RedisSessions extends EventEmitter {
 		return o;
 	}
 
-	// TODO refine options maybe
 	private async _returnSessions(options: {app: string}, sessions: string[]) {
 		if (sessions.length === 0) {
 			return { sessions: [] };
@@ -830,37 +771,30 @@ class RedisSessions extends EventEmitter {
 				"no_resave"
 			]);
 		}
-		try {
-			const resp = await mc.exec();
-			const o = [];
-			for (const e of resp) {
-				if (Array.isArray(e)) {
-					// TODO typeing into number|string|null|
-					const result: (string|null)[] = [];
-					for (const reply of e) {
-						// maybe check for buffer?
-						if (typeof reply === "string" || typeof reply === "number") {
-							result.push(reply.toString());
-						} else if (reply === null) {
-							result.push(reply);
-						} else {
-							// should not happen maybe throw error;
-						}
+		const resp = await mc.exec();
+		const o = [];
+		for (const e of resp) {
+			if (Array.isArray(e)) {
+				const result: (string|null)[] = [];
+				for (const reply of e) {
+					const x = typeof reply;
+					if (typeof reply === "string" || typeof reply === "number") {
+						result.push(reply.toString());
+					} else if (reply === null) {
+						result.push(reply);
+					} else {
+						throw new Error("Critical Error in return Session");
 					}
-					const session = this._prepareSession(result);
-					if (session) {
-						o.push(session);
-					}
-				} else {
-					// TODO dont know how this can happen but propably error
 				}
+				const session = this._prepareSession(result);
+				if (session) {
+					o.push(session);
+				}
+			} else {
+				throw new TypeError("Critical Error in return Session2");
 			}
-			return { sessions: o };
-		} catch (error) {
-			// TODO think about error
-			console.log(error);
-			throw error;
 		}
+		return { sessions: o };
 	}
 
 	// Validation regex used by _validate
@@ -898,7 +832,6 @@ class RedisSessions extends EventEmitter {
 					break;
 				}
 				case "dt": {
-					// TODO check if typescrpts fault or my fault dt instad of [item]
 					const dt = Number.parseInt(`${o[item]}`, 10);
 					if (_.isNaN(dt) || !_.isNumber(dt) || dt < 10) {
 						throw this._handleError("invalidValue", { msg: "ttl must be a positive integer >= 10" });
@@ -938,22 +871,18 @@ class RedisSessions extends EventEmitter {
 		if (!this.connected) {
 			this.connected = await this.toConnect;
 		}
-		try {
-			const resp = await this.redis.zRangeByScore(`${this.redisns}SESSIONS`, "-inf", this._now());
-			if (resp.length === 0) {
-				for (const element of resp) {
-					const e = element.split(":");
-					const options = {
-						app: e[0],
-						token: e[1],
-						id: e[2]
-					};
-					await this._kill(options);
-				}
+
+		const resp = await this.redis.zRangeByScore(`${this.redisns}SESSIONS`, "-inf", this._now());
+		if (resp.length === 0) {
+			for (const element of resp) {
+				const e = element.split(":");
+				const options = {
+					app: e[0],
+					token: e[1],
+					id: e[2]
+				};
+				await this._kill(options);
 			}
-		} catch (error) {
-			console.log(error);
-			return;
 		}
 		return;
 	};
