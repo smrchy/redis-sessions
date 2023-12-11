@@ -15,7 +15,6 @@
   "dependencies": {
     "lodash": "^4.17.21",
     "lru-cache": "^10.1.0",
-    "node-cache": "^5.1.2",
     "redis": "^4.6.11"
   },
   "devDependencies": {

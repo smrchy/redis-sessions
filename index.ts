@@ -6,7 +6,7 @@ import type { RedisClientOptions, RedisClientType } from "redis";
 
 import { EventEmitter } from "node:events";
 
-import NodeCache from "node-cache";
+import { LRUCache } from "lru-cache";
 interface ConstructorOptions {
 	port?: number;
 	host?: string;
@@ -69,8 +69,9 @@ class RedisSessions extends EventEmitter {
 	// maybe public TODO
 	private connected: boolean;
 	private toConnect: Promise<boolean>;
-	private sessionCache: NodeCache|null = null;
+	private sessionCache: LRUCache<string, Session>|null = null;
 	private wiperInterval: ReturnType<typeof setInterval>|null = null;
+	private toSubscribe: Promise<boolean> = Promise.resolve(true);
 	constructor(o: ConstructorOptions) {
 		super();
 		// TODO check later function
@@ -119,9 +120,10 @@ class RedisSessions extends EventEmitter {
 			if (isClient) { console.log("Warning: Caching is disabled. Must not supply `client` option"); } else {
 				if (o.cachetime > 0) {
 					// Setup node-cache
-					this.sessionCache = new NodeCache({
-						stdTTL: o.cachetime,
-						useClones: false
+					this.sessionCache = new LRUCache<string, Session>({
+						ttl: o.cachetime,
+						updateAgeOnGet: true,
+						ttlAutopurge: true
 					});
 					// Setup the Redis subscriber to listen for changes
 					if (o.options && o.options.url) { redissub = createClient(o.options); } else {
@@ -132,12 +134,7 @@ class RedisSessions extends EventEmitter {
 					// this.toConnect = this.connect(redissub);
 					// Setup the subscriber
 
-					redissub.subscribe(`${this.redisns}cache`, (message) => {
-						if (this.sessionCache) {
-							this.sessionCache.del(message);
-						}
-						return;
-					});
+					this.toSubscribe = this.subscribe(redissub);
 
 				}
 			}
@@ -168,29 +165,13 @@ class RedisSessions extends EventEmitter {
 			this.connected = await this.toConnect;
 		}
 		this._validate(options, ["app", "dt"]);
-		try {
-			// https://github.com/StackExchange/StackExchange.Redis/issues/1034
-			const count = await this.redis.zCount(`${this.redisns}${options.app}:_users`, this._now() - options.dt, "+inf");
-			return { activity: count };
-		} catch (error) {
-			// TODO
-			console.log(error);
-			throw error;
-		}
+		// https://github.com/StackExchange/StackExchange.Redis/issues/1034
+		const count = await this.redis.zCount(`${this.redisns}${options.app}:_users`, this._now() - options.dt, "+inf");
+		return { activity: count };
 	}
 
 	// to handle async work of constructor
-	private async connect(redissub?: ReturnType<typeof createClient>) {
-		// Setup the subscriber
-		// if (this.isCache && redissub) {
-		// 	await redissub.subscribe(`${this.redisns}cache`, (message) => {
-		// 		if (this.sessionCache) {
-		// 			this.sessionCache.del(message);
-		// 		}
-		// 		return;
-		// 	});
-		// }
-
+	private async connect() {
 		await this.redis.connect();
 		return true;
 	}
@@ -264,20 +245,15 @@ class RedisSessions extends EventEmitter {
 			thesession.no_resave = 1;
 		}
 		mc.hSet(`${this.redisns}${options.app}:${token}`, thesession);
-		try {
-			// Run the redis statement
-			const resp = await mc.exec();
-			// curently returns number of insertet key value pairs
-			// old:resp[4] !== "OK"
-			if (typeof resp[4] !== "number" || resp[4] < 4) {
-				throw new Error("Unknown Error");
-			}
-			return { token: token };
-		} catch (error) {
-			// TODO
-			console.log(error);
-			throw error;
+
+		// Run the redis statement
+		const resp = await mc.exec();
+		// curently returns number of insertet key value pairs
+		// old:resp[4] !== "OK"
+		if (typeof resp[4] !== "number" || resp[4] < 4) {
+			throw new Error("Unknown Error");
 		}
+		return { token: token };
 	}
 
 	/* Get
@@ -299,54 +275,46 @@ class RedisSessions extends EventEmitter {
 		const cachekey = `${options.app}:${options.token}`;
 		if (this.isCache && !options._nocache && this.sessionCache) {
 			// Try to find the session in cache
-			const cache = this.sessionCache.get<Session>(cachekey);
+			const cache = this.sessionCache.get(cachekey);
 			if (cache) {
 				return cache;
 			}
 		}
 		const thekey = `${this.redisns}${cachekey}`;
-		try {
-			const resp = await this.redis.hmGet(thekey, [
-				"id",
-				"r",
-				"w",
-				"ttl",
-				"d",
-				"la",
-				"ip",
-				"no_resave"
-			]);
-			const o = this._prepareSession(resp);
-			if (o === null) {
-				return null;
-			}
-			if (this.isCache && this.sessionCache) {
-				this.sessionCache.set(cachekey, o);
-			}
-			// Secret switch to disable updating the stats - we don't need this when we kill a session
-			if (options._noupdate) {
-				return o;
-			}
-			// Update the counters
-			const mc = this._createMultiStatement(options.app, options.token, o.id, o.ttl, o.no_resave);
-			mc.hIncrBy(thekey, "r", 1);
-			if (o.idle > 1) {
-				mc.hSet(thekey, "la", this._now());
-			}
-			try {
-				await mc.exec();
-				return o;
-			} catch (error) {
-				// TODO
-				console.log(error);
-				throw error;
-			}
 
-		} catch (error) {
-			// TODO
-			console.log(error);
-			throw error;
+		const resp = await this.redis.hmGet(thekey, [
+			"id",
+			"r",
+			"w",
+			"ttl",
+			"d",
+			"la",
+			"ip",
+			"no_resave"
+		]);
+		const o = this._prepareSession(resp);
+		if (o === null) {
+			return null;
 		}
+		if (this.isCache && this.sessionCache) {
+			this.sessionCache.set(cachekey, o);
+		}
+		// Secret switch to disable updating the stats - we don't need this when we kill a session
+		if (options._noupdate) {
+			return o;
+		}
+		// Update the counters
+		const mc = this._createMultiStatement(options.app, options.token, o.id, o.ttl, o.no_resave);
+		mc.hIncrBy(thekey, "r", 1);
+		if (o.idle > 1) {
+			mc.hSet(thekey, "la", this._now());
+		}
+
+		await mc.exec();
+		return o;
+
+
+
 	}
 
 	// TODO patrick fragen ob man die braucht
@@ -748,6 +716,17 @@ class RedisSessions extends EventEmitter {
 			console.log(error);
 			throw error;
 		}
+	}
+
+	// handle redissun from constructor because of async
+	private async subscribe(redissub: ReturnType<typeof createClient>) {
+		await redissub.subscribe(`${this.redisns}cache`, (message) => {
+			if (this.sessionCache) {
+				this.sessionCache.delete(message);
+			}
+			return;
+		});
+		return true;
 	}
 
 	// Helpers
