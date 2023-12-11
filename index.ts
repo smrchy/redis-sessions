@@ -2,7 +2,7 @@
 import _ from "lodash";
 
 import { createClient } from "redis";
-import type { RedisClientOptions, RedisClientType } from "redis";
+import type { RedisClientOptions } from "redis";
 
 import { EventEmitter } from "node:events";
 
@@ -13,7 +13,6 @@ interface ConstructorOptions {
 	options?: RedisClientOptions; // maybe something else
 	namespace?: string;
 	wipe?: number;
-	client?: RedisClientType;// maybe something else
 	cachetime?: number;
 }
 
@@ -57,7 +56,6 @@ export interface Session {
 	`options`, *optional* Default: `{}`. Additional options. See [https://github.com/mranney/node_redis#rediscreateclientport-host-options](redis.createClient))
 	`namespace`: *optional* Default: `rs`. The namespace prefix for all Redis keys used by this module.
 	`wipe`: *optional* Default: `600`. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
-	`client`: *optional* An external RedisClient object which will be used for the connection.
 	`cachetime` (Number) *optional* Number of seconds to cache sessions in memory. Can only be used if no `client` is supplied. See the "Cache" section. Default: `0`.
 */
 // extended Eventemitter before
@@ -66,10 +64,12 @@ class RedisSessions extends EventEmitter {
 	private redisns: string;
 	private isCache = false;
 	private redis: ReturnType<typeof createClient>;
+	private redissub: ReturnType<typeof createClient>|null = null;
 	private connected: boolean;
 	private toConnect: Promise<boolean>;
 	private sessionCache: LRUCache<string, Session>|null = null;
 	private wiperInterval: ReturnType<typeof setInterval>|null = null;
+	private subscribed: boolean = false;
 	private toSubscribe: Promise<boolean> = Promise.resolve(true);
 	constructor(o: ConstructorOptions) {
 		super();
@@ -77,12 +77,9 @@ class RedisSessions extends EventEmitter {
 		this.redisns = o.namespace ?? "rs";
 		this.redisns += ":";
 
-		let isClient = false;
+		const isClient = false;
 
-		if (o.client?.constructor.name === "RedisClient") {
-			isClient = true;
-			this.redis = o.client;
-		} else if (o.options && o.options.url) {
+		if (o.options && o.options.url) {
 			this.redis = createClient(o.options);
 		} else {
 			this.redis = createClient(_.merge(o.options ?? {}, { socket: { port: o.port ?? 6379, host: o.host ?? "127.0.0.1" } }));
@@ -114,35 +111,22 @@ class RedisSessions extends EventEmitter {
 		}
 
 
-		let redissub;
-		if (o.cachetime) {
-			if (isClient) { console.log("Warning: Caching is disabled. Must not supply `client` option"); } else {
-				if (o.cachetime > 0) {
-					// Setup node-cache
-					this.sessionCache = new LRUCache<string, Session>({
-						ttl: o.cachetime * 1000,
-						updateAgeOnGet: true,
-						ttlAutopurge: true
-					});
-					// Setup the Redis subscriber to listen for changes
-					if (o.options && o.options.url) { redissub = createClient(o.options); } else {
-						redissub = createClient(_.merge(o.options ?? {}, { socket: { port: o.port ?? 6379, host: o.host ?? "127.0.0.1" } }));
-					}
-					// Setup the subscriber
-					this.isCache = true;
-					// this.toConnect = this.connect(redissub);
-					// Setup the subscriber
-
-					// this.toSubscribe = this.subscribe(redissub);
-					// redissub.subscribe(`${this.redisns}cache`, (message) => {
-					// 	if (this.sessionCache) {
-					// 		this.sessionCache.delete(message);
-					// 	}
-					// 	return;
-					// });
-
-				}
+		if (o.cachetime && o.cachetime > 0) {
+			// Setup node-cache
+			this.sessionCache = new LRUCache<string, Session>({
+				ttl: o.cachetime * 1000,
+				updateAgeOnGet: true,
+				ttlAutopurge: true
+			});
+			// Setup the Redis subscriber to listen for changes
+			if (o.options && o.options.url) { this.redissub = createClient(o.options); } else {
+				this.redissub = createClient(_.merge(o.options ?? {}, { socket: { port: o.port ?? 6379, host: o.host ?? "127.0.0.1" } }));
 			}
+			// Setup the subscriber
+			this.isCache = true;
+			// Setup the subscriber
+			this.toSubscribe = this.subscribe();
+
 		}
 
 
@@ -368,10 +352,10 @@ class RedisSessions extends EventEmitter {
 		mc.del(`${this.redisns}${options.app}:${options.token}`);
 		mc.exists(`${this.redisns}${options.app}:us:${options.id}`);
 		if (this.isCache) {
-			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
-			if (this.sessionCache) {
-				this.sessionCache.delete(`${options.app}:${options.token}`);
+			if (!this.subscribed) {
+				this.subscribed = await this.toSubscribe;
 			}
+			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
 		}
 
 		const resp = await mc.exec();
@@ -423,11 +407,11 @@ class RedisSessions extends EventEmitter {
 		mc.del(tokenkeys);
 
 		if (this.isCache) {
+			if (!this.subscribed) {
+				this.subscribed = await this.toSubscribe;
+			}
 			for (const e of resp) {
 				mc.publish(`${this.redisns}cache`, `${options.app}:${e.split(":")[0]}`);
-				if (this.sessionCache) {
-					this.sessionCache.delete(`${options.app}:${e.split(":")[0]}`);
-				}
 			}
 		}
 		const response = await mc.exec();
@@ -453,6 +437,9 @@ class RedisSessions extends EventEmitter {
 			return { kill: 0 };
 		}
 		const mc = this.redis.multi();
+		if (this.isCache && !this.subscribed) {
+			this.subscribed = await this.toSubscribe;
+		}
 		// Grab all sessions we need to get
 		for (const token of resp) {
 			// Add the multi commands
@@ -462,9 +449,6 @@ class RedisSessions extends EventEmitter {
 			mc.del(`${this.redisns}${options.app}:${token}`);
 			if (this.isCache) {
 				mc.publish(`${this.redisns}cache`, `${options.app}:${token}`);
-				if (this.sessionCache) {
-					this.sessionCache.delete(`${options.app}:${token}`);
-				}
 			}
 		}
 		mc.exists(`${this.redisns}${options.app}:us:${options.id}`);
@@ -496,12 +480,10 @@ class RedisSessions extends EventEmitter {
 	//
 	// Ping  the Redis server
 	public async ping() {
-		// console.log("=====test========");
 		if (!this.connected) {
-			// console.log("=====test========");
+
 			this.connected = await this.toConnect;
 		}
-		// console.log("=====test========");
 		return await this.redis.ping();
 	}
 
@@ -593,11 +575,12 @@ class RedisSessions extends EventEmitter {
 			mc.hDel(thekey, "d");
 			resp = _.omit(resp, "d");
 		}
+
 		if (this.isCache) {
-			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
-			if (this.sessionCache) {
-				this.sessionCache.delete(`${options.app}:${options.token}`);
+			if (!this.subscribed) {
+				this.subscribed = await this.toSubscribe;
 			}
+			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
 		}
 		const reply = await mc.exec();
 		if (typeof reply[3] === "number") {
@@ -662,13 +645,16 @@ class RedisSessions extends EventEmitter {
 	}
 
 	// handle redissub from constructor because of async
-	private async subscribe(redissub: ReturnType<typeof createClient>) {
-		await redissub.subscribe(`${this.redisns}cache`, (message) => {
-			if (this.sessionCache) {
-				this.sessionCache.delete(message);
-			}
-			return;
-		});
+	private async subscribe() {
+		if (this.redissub) {
+			await this.redissub.connect();
+			await this.redissub.subscribe(`${this.redisns}cache`, (message, _channel) => {
+				if (this.sessionCache) {
+					this.sessionCache.delete(message);
+				}
+				return;
+			});
+		}
 		return true;
 	}
 

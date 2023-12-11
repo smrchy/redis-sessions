@@ -3,14 +3,20 @@
   "description": "An advanced session store for Redis",
   "version": "3.0.0",
   "license": "MIT",
+  "main":"dist/index.js",
+  "types":"dist/index.d.ts",
   "author": "P. Liess <smrchy+npm@gmail.com>",
   "scripts": {
-    "build": "./node_modules/.bin/coffee -cb index.coffee && ./node_modules/.bin/coffee -cb test/test.coffee",
+    "prebuild": "npm run lint",
+    "build": "npm run build:ts",
+    "build:ts": "tsc --declaration",
     "test": "node --expose-internals node_modules/.bin/mocha ./test/test.js",
-    "testTS": "node --expose-internals node_modules/.bin/mocha ./dist/test/test.js",
+    "test:ts": "node node_modules/.bin/mocha ./dist/test/test.js",
+    "prepublishOnly": "npm run lint",
+    "preversion": "npm run lint",
+    "postversion": "echo 'IMPORTANT: Run `git push && git push --tags` to push created version to repo and `npm publish` to publish to npm'",
     "lint": "eslint",
-    "watch": "tsc -w",
-    "buildTS": "tsc"
+    "watch": "tsc -w"
   },
   "dependencies": {
     "lodash": "^4.17.21",
