@@ -191,7 +191,6 @@ describe("Redis-Sessions Test", function () {
 			resp.should.have.keys("token");
 			token4 = resp.token;
 		});
-		// patric fragen ob error
 		it("Create yet another session for user1 with an invalid `d` object: should throw error", async function () {
 			try {
 				await rs.create({
@@ -202,7 +201,6 @@ describe("Redis-Sessions Test", function () {
 				should.exist(error);
 			}
 		});
-		// error
 		it("Create yet another session for user1 with an invalid `d` object: should throw error", async function () {
 			try {
 				await rs.create({
@@ -411,8 +409,7 @@ describe("Redis-Sessions Test", function () {
 			const resp = await rs.get({ app: app1, token: token1 });
 			should.equal(resp, null);
 		});
-		// 5 users still
-		it("Activity for app1 should show 4 users still", async function () {
+		it("Activity for app1 should show 5 users still", async function () {
 			const resp = await rs.activity({ app: app1, dt: 60 });
 			resp.should.have.keys("activity");
 			resp.activity.should.equal(5);
@@ -502,7 +499,6 @@ describe("Redis-Sessions Test", function () {
 			}
 		});
 		it("Set some params for token1 with an empty object: should fail", async function () {
-			// TODO find a way to enforce one propety
 			try {
 				await rs.set({
 					app: app1, token: token1, d: {}
