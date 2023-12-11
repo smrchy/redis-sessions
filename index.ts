@@ -7,8 +7,6 @@ import type { RedisClientOptions, RedisClientType } from "redis";
 import { EventEmitter } from "node:events";
 
 import NodeCache from "node-cache";
-import type RedisClient from "@redis/client/dist/lib/client";
-
 interface ConstructorOptions {
 	port?: number;
 	host?: string;
@@ -87,14 +85,7 @@ class RedisSessions extends EventEmitter {
 		} else if (o.options && o.options.url) {
 			this.redis = createClient(o.options);
 		} else {
-			this.redis = createClient({
-				socket: {
-					port: o.port ?? 6379,
-					host: o.host ?? "127.0.0.1"
-				}
-			});
-			// TODO out options meaning
-			// this.redis = createClient(o.port or 6379, o.host or "127.0.0.1", o.options or {})
+			this.redis = createClient(_.merge(o.options ?? {}, { socket: { port: o.port ?? 6379, host: o.host ?? "127.0.0.1" } }));
 		}
 		// maybe is open better for this case
 		this.connected = this.redis.isOpen;
@@ -121,10 +112,11 @@ class RedisSessions extends EventEmitter {
 		} else {
 			this.toConnect = this.connect();
 		}
+
+
 		let redissub;
 		if (o.cachetime) {
 			if (isClient) { console.log("Warning: Caching is disabled. Must not supply `client` option"); } else {
-				// o.cachetime = parseInt(o.cachetime, 10)
 				if (o.cachetime > 0) {
 					// Setup node-cache
 					this.sessionCache = new NodeCache({
@@ -133,28 +125,25 @@ class RedisSessions extends EventEmitter {
 					});
 					// Setup the Redis subscriber to listen for changes
 					if (o.options && o.options.url) { redissub = createClient(o.options); } else {
-						redissub = createClient({
-							socket: {
-								port: o.port ?? 6379,
-								host: o.host ?? "127.0.0.1"
-							}
-						});
-						// redissub = createClient(o.port or 6379, o.host or "127.0.0.1", o.options or {})
+						redissub = createClient(_.merge(o.options ?? {}, { socket: { port: o.port ?? 6379, host: o.host ?? "127.0.0.1" } }));
 					}
-					// Setup the listener for change messages
-					redissub.on("message", (c, m) => { // Message will only contain a `{app}:{token}` string. Just delete it from node-cache.
+					// Setup the subscriber
+					this.isCache = true;
+					// this.toConnect = this.connect(redissub);
+					// Setup the subscriber
+
+					redissub.subscribe(`${this.redisns}cache`, (message) => {
 						if (this.sessionCache) {
-							this.sessionCache.del(m);
+							this.sessionCache.del(message);
 						}
 						return;
 					});
-					// TODO
-					// Setup the subscriber
-					this.isCache = true;
-					// redissub.subscribe(`${@redisns}cache`)
+
 				}
 			}
 		}
+
+
 		if (o.wipe !== 0) {
 			let wipe = o.wipe || 600;
 			if (wipe < 10) {
@@ -190,6 +179,22 @@ class RedisSessions extends EventEmitter {
 		}
 	}
 
+	// to handle async work of constructor
+	private async connect(redissub?: ReturnType<typeof createClient>) {
+		// Setup the subscriber
+		// if (this.isCache && redissub) {
+		// 	await redissub.subscribe(`${this.redisns}cache`, (message) => {
+		// 		if (this.sessionCache) {
+		// 			this.sessionCache.del(message);
+		// 		}
+		// 		return;
+		// 	});
+		// }
+
+		await this.redis.connect();
+		return true;
+	}
+
 	/* Create
 
 	Creates a session for an app and id.
@@ -214,11 +219,6 @@ class RedisSessions extends EventEmitter {
 
 	Returns the token when successful.
 	*/
-
-	private async connect() {
-		await this.redis.connect();
-		return true;
-	}
 
 	public async create(options: {app: string; id: string; ip: string; ttl?: number; d?: Record<string, string|number|boolean|null>; no_resave?: boolean}) {
 		if (!this.connected) {
@@ -417,9 +417,6 @@ class RedisSessions extends EventEmitter {
 		mc.exists(`${this.redisns}${options.app}:us:${options.id}`);
 		if (this.isCache) {
 			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
-			if (this.sessionCache) {
-				this.sessionCache.del(`${options.app}:${options.token}`);
-			}
 		}
 		try {
 
@@ -487,9 +484,6 @@ class RedisSessions extends EventEmitter {
 			if (this.isCache) {
 				for (const e of resp) {
 					mc.publish(`${this.redisns}cache`, `${options.app}:${e.split(":")[0]}`);
-					if (this.sessionCache) {
-						this.sessionCache.del(`${options.app}:${e.split(":")[0]}`);
-					}
 				}
 			}
 			try {
@@ -536,9 +530,6 @@ class RedisSessions extends EventEmitter {
 				mc.del(`${this.redisns}${options.app}:${token}`);
 				if (this.isCache) {
 					mc.publish(`${this.redisns}cache`, `${options.app}:${token}`);
-					if (this.sessionCache) {
-						this.sessionCache.del(`${options.app}:${token}`);
-					}
 				}
 			}
 			mc.exists(`${this.redisns}${options.app}:us:${options.id}`);
@@ -681,9 +672,6 @@ class RedisSessions extends EventEmitter {
 		}
 		if (this.isCache) {
 			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
-			if (this.sessionCache) {
-				this.sessionCache.del(`${options.app}:${options.token}`);
-			}
 		}
 		try {
 			const reply = await mc.exec();

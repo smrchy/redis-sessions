@@ -1,23 +1,6 @@
-import _ from "lodash";
 import RedisSessions from "../index";
 import should from "should";
 import { setTimeout } from "node:timers/promises";
-
-import { PendingSuiteFunction } from "mocha";
-import type { Session } from "../index";
-
-const tokenReg = /^([\dA-Za-z]){64}$/;
-const testToken = "NIxwHyNScshj9B5g95OcrzETD9D4KayzcOnAbgiB7Cv7PxJRlK4miIAeZlpwgc6p2";
-
-function test() {
-	// const rs = new RedisSessions({});
-	// const pong = await rs.ping();
-	// console.log(pong);
-	const testZeit = Date.now().toString(36);
-	console.log(testToken.length);
-	console.log(testZeit.length, testZeit);
-}
-
 
 
 describe("Redis-Sessions Test", function () {
@@ -741,7 +724,6 @@ describe("Redis-Sessions Test", function () {
 		});
 		it("Get token3: should work, not from cache", async function () {
 			const resp = await rswithcache.get({ app: app2, token: token3 });
-			console.debug(resp);
 			should.notEqual(resp, null);
 			if (resp !== null) {
 				resp.r.should.equal(8);
