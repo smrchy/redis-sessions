@@ -42,7 +42,7 @@ With Redis running on the same machine as the test script (run via `npm test`) o
 
 ## Cache (optional setting)
 
-Note: If you want to use the `cachetime` option you must not supply the `client` option.
+Note: If you want to use the `cachetime` option you must not supply the `client` option. TODO
 
 Modern apps might also use a lot of requests while a user is active. This results in a lot of Redis requests to look up sessions. What's faster than an in-memory cache in Redis? An in-memory cache right in your app! 
 When you enable caching you can speed up session lookups by a lot. Consider the following before you enable it:
@@ -67,6 +67,7 @@ See [rest-sessions](https://github.com/smrchy/rest-sessions).
 ### Initialize redis-sessions
 
 ```javascript
+// import {RedisSessions} from "redis-sessions"
 RedisSessions = require("redis-sessions");
 //
 // Parameters for RedisSession:
@@ -78,7 +79,7 @@ RedisSessions = require("redis-sessions");
 // `options`, *optional* Default: {}. Additional options. See: https://github.com/mranney/node_redis#rediscreateclientport-host-options
 // `namespace`: *optional* Default: `rs`. The namespace prefix for all Redis keys used by this module.
 // `wipe`: *optional* Default: `600`. The interval in seconds after which expired sessions are wiped. Only values `0` or greater than `10` allowed. Set to `0` to disable.
-// `client`: *optional* An external RedisClient object which will be used for the connection.
+// `client`: *optional* An external RedisClient object which will be used for the connection. TODO
 // `cachetime`: *optional*  Default: `0`. Number of seconds to cache sessions in memory. Can only be used if no `client` is supplied. See the "Cache" section.
 rs = new RedisSessions();
 
@@ -100,7 +101,7 @@ Parameters:
 
 // Set a session for `user1001`
 
-rs.create({
+const resp = await rs.create({
   app: rsapp,
   id: "user1001",
   ip: "192.168.22.58",
@@ -109,11 +110,10 @@ rs.create({
     foo: "bar",
     unread_msgs: 34
   }
-  },
-  function(err, resp) {
-    // resp should be something like 
-    // {token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"}
   });
+  // resp should be something like 
+  // {token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"}
+
 ```
 
 Notes: 
@@ -127,15 +127,14 @@ Notes:
 ### Update and add some more data to an existing session
 
 ```javascript
-rs.set({
+const resp = await rs.set({
   app: rsapp,
   token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe",
   d: {
     "unread_msgs": 12,
     "last_action": "/read/news",
     "birthday": "2013-08-13"
-  }},
-  function(err, resp) {
+  }});
     /*
     resp contains the session with the new values:
 
@@ -154,7 +153,6 @@ rs.set({
         }
     }
     */  
-  });
 ```
 
 Note: The key `foo` that we didn't supply in the `set` command will not be touched. See **Set/Update/Delete** details for details on how to remove keys.
@@ -162,10 +160,9 @@ Note: The key `foo` that we didn't supply in the `set` command will not be touch
 ### Get a session for a token
 
 ```javascript
-rs.get({
+const resp= await rs.get({
   app: rsapp,
-  token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"},
-  function(err, resp) {
+  token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"});
     /*
     resp contains the session:
 
@@ -185,7 +182,6 @@ rs.get({
     }
 
     */
-  });
 ```
 
 ### Set/Update/Delete
@@ -197,14 +193,13 @@ To remove keys set them to `null`, **keys that are not supplied will not be touc
 
 ```javascript
 
-rs.set({
+const resp = await rs.set({
   app: rsapp,
   token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe",
   d: {
       "unread_msgs": null
       "last_action": "/read/msg/2121"
-  }},
-  function(err, resp) {
+  }});
     /*
     resp contains the session with modified values:
 
@@ -222,7 +217,6 @@ rs.set({
         }
     }
     */  
-  });
 ```
 
 ### Kill
@@ -231,16 +225,14 @@ Kill a single session by supplying app and token:
 
 ```javascript
 
-rs.kill({
+const resp = await rs.kill({
   app: rsapp,
-  token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"},
-  function(err, resp) {
+  token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"});
     /*
     resp contains the result:
 
     {kill: 1}
     */  
-  });
 ```
 
 Note: If `{kill: 0}` is returned the session was not found.
@@ -253,16 +245,15 @@ Note: Multiple sessions from the same user id will be counted as one.
 
 ```javascript
 
-rs.activity({
+const resp = await rs.activity({
   app: rsapp,
-  dt: 600},
-  function(err, resp) {
+  dt: 600
+  });
     /*
     resp contains the activity:
 
     {activity: 12}
-    */  
-  });
+    */
 ```
 
 ### Sessions of App
@@ -271,10 +262,10 @@ Get all sessions of an app there were active within the last 10 minutes (600 sec
 
 ```javascript
 
-rs.soapp({
+const resp = await rs.soapp({
   app: rsapp,
-  dt: 600},
-  function(err, resp) {
+  dt: 600
+  });
     /*
     resp contains the sessions:
 
@@ -294,8 +285,7 @@ rs.soapp({
            ip: '127.0.0.1' }
         ] 
     }
-    */  
-  });
+    */
 ```
 
 ### Sessions of Id
@@ -304,10 +294,10 @@ Get all sessions within an app that belong to a single id. This would be all ses
 
 ```javascript
 
-rs.soid({
+const resp = await rs.soid({
   app: rsapp,
-  id: "bulkuser_999"},
-  function(err, resp) {
+  id: "bulkuser_999"
+  });
     /*
     resp contains the sessions:
 
@@ -326,8 +316,7 @@ rs.soid({
            ip: '127.0.0.1' }
         ] 
     }
-    */  
-  });
+    */
 ```
 
 ### Kill all sessions of an id
@@ -336,14 +325,12 @@ Kill all sessions of an id within an app:
 
 ```javascript
 
-rs.killsoid({app: rsapp, id: 'bulkuser_999'},
-  function(err, resp) {
+const resp = rs.killsoid({app: rsapp, id: 'bulkuser_999'});
     /*
     resp contains the result:
 
     {kill: 2} // The amount of sessions that were killed
-    */  
-  });
+    */
 ```
 
 ### Killall
@@ -352,14 +339,12 @@ Kill all sessions of an app:
 
 ```javascript
 
-rs.killall({app: rsapp},
-  function(err, resp) {
+const resp = await rs.killall({app: rsapp});
     /*
     resp contains the result:
 
     {kill: 12} // The amount of sessions that were killed
-    */  
-  });
+    */
 ```
 
 ### Ping
@@ -368,13 +353,12 @@ Ping the redis server
 
 ```javascript
 
-rs.ping(function(err, resp) {
+const resp = await rs.ping();
     /*
     resp contains the result:
 
     "PONG"
-    */  
-});
+    */
 ```
 
 

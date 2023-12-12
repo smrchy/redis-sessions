@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 4.0.0?
+* Added typescript and type definitions
+* Upgraded redis Version
+* Switch from callbacks to async/await
+
 ## 3.0.0
 
 * Dropped suppoer for Node 4 and Node 6

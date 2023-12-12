@@ -262,8 +262,12 @@ describe("Redis-Sessions Test", function () {
 					ip: "127.0.0.1"
 				});
 			}
+			const promises = [];
 			for (const user of pq) {
-				const resp = await rs.create(user);
+				promises.push(rs.create(user));
+			}
+			const response = await Promise.all(promises);
+			for (const resp of response) {
 				resp.should.have.keys("token");
 				bulksessions.push(resp.token);
 			}
@@ -281,17 +285,20 @@ describe("Redis-Sessions Test", function () {
 					token: bulksession
 				});
 			}
-			const response = [];
-			for (const [j, element] of pq.entries()) {
-				const resp = await rs.get(element);
+			const promises = [];
+			for (const element of pq) {
+				const resp = rs.get(element);
+				promises.push(resp);
+			}
+			const response = await Promise.all(promises);
+			response.length.should.equal(1000);
+			for (const [j, resp] of response.entries()) {
 				should.notEqual(resp, null);
 				if (resp !== null) {
 					resp.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
 					resp.id.should.equal("bulkuser_" + j);
 				}
-				response.push(resp);
 			}
-			response.length.should.equal(1000);
 		});
 
 		it("Create a session for bulkuser_999 with valid data: should return a token", async function () {
@@ -755,17 +762,19 @@ describe("Redis-Sessions Test", function () {
 					token: e
 				});
 			}
-			const response = [];
+			const promises = [];
 			for (const element of pq) {
-				const resp = await rswithcache.get(element);
-				if (resp) {
-					response.push(resp);
-				}
+				const resp = rswithcache.get(element);
+				promises.push(resp);
 			}
+			const response = await Promise.all(promises);
 			response.length.should.equal(500);
 			for (const [k, e] of response.entries()) {
-				e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
-				e.id.should.equal("bulkuser_" + k);
+				should.notEqual(e, null);
+				if (e) {
+					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+					e.id.should.equal("bulkuser_" + k);
+				}
 			}
 		});
 		it("Get 500 sessions for app2: succeed (from cache)", async function () {
@@ -777,17 +786,19 @@ describe("Redis-Sessions Test", function () {
 					token: e
 				});
 			}
-			const response = [];
+			const promises = [];
 			for (const element of pq) {
-				const resp = await rswithcache.get(element);
-				if (resp) {
-					response.push(resp);
-				}
+				const resp = rswithcache.get(element);
+				promises.push(resp);
 			}
+			const response = await Promise.all(promises);
 			response.length.should.equal(500);
 			for (const [k, e] of response.entries()) {
-				e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
-				e.id.should.equal("bulkuser_" + k);
+				should.notEqual(e, null);
+				if (e) {
+					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+					e.id.should.equal("bulkuser_" + k);
+				}
 			}
 		});
 		it("Get 500 sessions for app2 again: succeed (from cache)", async function () {
@@ -799,18 +810,19 @@ describe("Redis-Sessions Test", function () {
 					token: e
 				});
 			}
-			const response = [];
+			const promises = [];
 			for (const element of pq) {
-				const resp = await rswithcache.get(element);
-				if (resp) {
-					response.push(resp);
-				}
+				const resp = rswithcache.get(element);
+				promises.push(resp);
 			}
+			const response = await Promise.all(promises);
 			response.length.should.equal(500);
 			for (const [k, e] of response.entries()) {
-				e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
-				e.id.should.equal("bulkuser_" + k);
-
+				should.notEqual(e, null);
+				if (e) {
+					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+					e.id.should.equal("bulkuser_" + k);
+				}
 			}
 		});
 		it("Wait 2s", async function () {
@@ -825,18 +837,19 @@ describe("Redis-Sessions Test", function () {
 					token: e
 				});
 			}
-			const response = [];
+			const promises = [];
 			for (const element of pq) {
-				const resp = await rswithcache.get(element);
-				if (resp) {
-					response.push(resp);
-				}
+				const resp = rswithcache.get(element);
+				promises.push(resp);
 			}
+			const response = await Promise.all(promises);
 			response.length.should.equal(500);
 			for (const [k, e] of response.entries()) {
-				e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
-				e.id.should.equal("bulkuser_" + k);
-
+				should.notEqual(e, null);
+				if (e) {
+					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+					e.id.should.equal("bulkuser_" + k);
+				}
 			}
 		});
 	});

@@ -58,7 +58,6 @@ export interface Session {
 	`wipe`: *optional* Default: `600`. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
 	`cachetime` (Number) *optional* Number of seconds to cache sessions in memory. Can only be used if no `client` is supplied. See the "Cache" section. Default: `0`.
 */
-// extended Eventemitter before
 // eslint-disable-next-line unicorn/prefer-event-target
 class RedisSessions extends EventEmitter {
 	private redisns: string;
@@ -71,21 +70,19 @@ class RedisSessions extends EventEmitter {
 	private wiperInterval: ReturnType<typeof setInterval>|null = null;
 	private subscribed: boolean = false;
 	private toSubscribe: Promise<boolean> = Promise.resolve(true);
-	constructor(o: ConstructorOptions) {
+	constructor(o: ConstructorOptions = {}) {
+		console.time("constructor");
 		super();
-		// TODO check later function
 		this.redisns = o.namespace ?? "rs";
 		this.redisns += ":";
-
-		const isClient = false;
 
 		if (o.options && o.options.url) {
 			this.redis = createClient(o.options);
 		} else {
 			this.redis = createClient(_.merge(o.options ?? {}, { socket: { port: o.port ?? 6379, host: o.host ?? "127.0.0.1" } }));
 		}
-		// maybe is open better for this case
-		this.connected = this.redis.isOpen;
+
+		this.connected = false;
 
 		this.redis.on("connect", () => {
 			this.connected = true;
@@ -104,11 +101,8 @@ class RedisSessions extends EventEmitter {
 			return;
 		});
 
-		if (this.connected) {
-			this.toConnect = Promise.resolve(true);
-		} else {
-			this.toConnect = this.connect();
-		}
+		// to handle async connect of client
+		this.toConnect = this.connect();
 
 
 		if (o.cachetime && o.cachetime > 0) {
@@ -137,6 +131,7 @@ class RedisSessions extends EventEmitter {
 			}
 			this.wiperInterval = setInterval(this._wipe, wipe * 1000);
 		}
+		console.timeEnd("constructor");
 	}
 
 	/* Activity
@@ -158,12 +153,6 @@ class RedisSessions extends EventEmitter {
 		return { activity: count };
 	}
 
-	// to handle async work of constructor
-	private async connect() {
-		await this.redis.connect();
-		return true;
-	}
-
 	/* Create
 
 	Creates a session for an app and id.
@@ -176,6 +165,9 @@ class RedisSessions extends EventEmitter {
 	* `id` must be [a-zA-Z0-9_-] and 1-64 chars long
 	* `ip` must be a valid IP4 address
 	* `ttl` *optional* Default: 7200. Positive integer between 1 and 2592000 (30 days)
+
+	* `d` *optional* Default: undefined. Object containing only string, number, boolean or null values
+	* `no_resave` *optional* Default: false. Boolean if true ttl will not refresh
 
 	**Example:**
 
@@ -204,6 +196,7 @@ class RedisSessions extends EventEmitter {
 		]);
 		const token = this._createToken();
 		// Prepopulate the multi statement
+		// console.time("multi");
 		const mc = this._createMultiStatement(options.app, token, options.id, options.ttl ?? 7200, false);
 		mc.sAdd(`${this.redisns}${options.app}:us:${options.id}`, token);
 		// Create the default session hash
@@ -233,7 +226,7 @@ class RedisSessions extends EventEmitter {
 			thesession.no_resave = 1;
 		}
 		mc.hSet(`${this.redisns}${options.app}:${token}`, thesession);
-
+		// console.timeEnd("multi");
 		// Run the redis statement
 		const resp = await mc.exec();
 		// curently returns number of insertet key value pairs
@@ -254,6 +247,9 @@ class RedisSessions extends EventEmitter {
 
 	* `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	* `token` must be [a-zA-Z0-9] and 64 chars long
+
+	* _noupdate & nocache used by kill/set functions to skip certain parts in this function
+	* if _noupdate is set session wont be cached
 	*/
 	public async get(options: {app: string; token: string;_noupdate?: boolean;_nocache?: boolean}) {
 		if (!this.connected) {
@@ -300,9 +296,6 @@ class RedisSessions extends EventEmitter {
 
 		await mc.exec();
 		return o;
-
-
-
 	}
 
 	/* Kill
@@ -518,6 +511,7 @@ class RedisSessions extends EventEmitter {
 	 * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
 	 * `token` must be [a-zA-Z0-9] and 64 chars long
 	 * `d` must be an object with keys whose values only consist of strings, numbers, boolean and null.
+	 * `no_resave` *optional* Default: false. Boolean if true ttl will not refresh
 	*/
 	public async set(options: {
 		app: string;
@@ -644,21 +638,13 @@ class RedisSessions extends EventEmitter {
 		return await this._returnSessions(options, resp);
 	}
 
-	// handle redissub from constructor because of async
-	private async subscribe() {
-		if (this.redissub) {
-			await this.redissub.connect();
-			await this.redissub.subscribe(`${this.redisns}cache`, (message, _channel) => {
-				if (this.sessionCache) {
-					this.sessionCache.delete(message);
-				}
-				return;
-			});
-		}
+	// Helpers
+
+	// to handle async work of constructor
+	private async connect() {
+		await this.redis.connect();
 		return true;
 	}
-
-	// Helpers
 
 	private _createMultiStatement = (app: string, token: string, id: string, ttl: number, no_resave?: boolean) => {
 		const now = this._now();
@@ -685,6 +671,7 @@ class RedisSessions extends EventEmitter {
 		return t;
 	};
 
+	// returns new Error
 	private _handleError(err: "missingParameter"|"invalidFormat"|"invalidValue", data: {item: string}|{msg: string}) {
 		// try to create a error Object with humanized message
 		if (_.isString(err)) {
@@ -704,11 +691,12 @@ class RedisSessions extends EventEmitter {
 		return new Error(err);
 	}
 
-
+	// returns current timestamp in seconds
 	private _now() {
 		return Number.parseInt("" + (Date.now() / 1000), 10);
 	}
 
+	// takes redis response and builds the corresponding session object
 	private _prepareSession(session: (string|null)[]) {
 		const now = this._now();
 		if (session[0] === null) {
@@ -783,6 +771,20 @@ class RedisSessions extends EventEmitter {
 		return { sessions: o };
 	}
 
+	// handle redissub from constructor because of async
+	private async subscribe() {
+		if (this.redissub) {
+			await this.redissub.connect();
+			await this.redissub.subscribe(`${this.redisns}cache`, (message, _channel) => {
+				if (this.sessionCache) {
+					this.sessionCache.delete(message);
+				}
+				return;
+			});
+		}
+		return true;
+	}
+
 	// Validation regex used by _validate
 	private VALID = {
 		app: /^([\w-]){3,20}$/,
@@ -791,6 +793,7 @@ class RedisSessions extends EventEmitter {
 		token: /^([\dA-Za-z]){64}$/
 	};
 
+	// trows an Error if user input isn`t following rules
 	private _validate<T extends EvaluatedOption>(o: T, items: string[]) {
 		for (const item of items) {
 			switch (item) {
@@ -872,7 +875,6 @@ class RedisSessions extends EventEmitter {
 		}
 		return;
 	};
-
 }
 
 export default RedisSessions;
