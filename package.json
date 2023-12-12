@@ -12,6 +12,7 @@
     "build:ts": "tsc --declaration",
     "test": "node --expose-internals node_modules/.bin/mocha ./test/test.js",
     "test:ts": "node node_modules/.bin/mocha ./dist/test/test.js",
+    "test:ts2": "node node_modules/.bin/mocha ./dist/wcb/test.js",
     "prepublishOnly": "npm run lint",
     "preversion": "npm run lint",
     "postversion": "echo 'IMPORTANT: Run `git push && git push --tags` to push created version to repo and `npm publish` to publish to npm'",

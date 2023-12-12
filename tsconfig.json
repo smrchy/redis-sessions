@@ -112,7 +112,9 @@
 	],
 	"include": [
 		"index.ts",
-		"test/test.ts"
+		"test/test.ts",
+		"wcb/index.ts",
+		"wcb/test.ts"
 	]
   }
   
