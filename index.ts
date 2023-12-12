@@ -751,7 +751,6 @@ class RedisSessions extends EventEmitter {
 			if (Array.isArray(e)) {
 				const result: (string|null)[] = [];
 				for (const reply of e) {
-					const x = typeof reply;
 					if (typeof reply === "string" || typeof reply === "number") {
 						result.push(reply.toString());
 					} else if (reply === null) {
@@ -876,5 +875,6 @@ class RedisSessions extends EventEmitter {
 		return;
 	};
 }
+
 
 export default RedisSessions;

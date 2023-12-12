@@ -3,8 +3,8 @@
   "description": "An advanced session store for Redis",
   "version": "3.0.0",
   "license": "MIT",
-  "main":"dist/index.js",
-  "types":"dist/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "author": "P. Liess <smrchy+npm@gmail.com>",
   "scripts": {
     "prebuild": "npm run lint",
