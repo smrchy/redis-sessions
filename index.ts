@@ -251,7 +251,7 @@ class RedisSessions extends EventEmitter {
 	* _noupdate & nocache used by kill/set functions to skip certain parts in this function
 	* if _noupdate is set session wont be cached
 	*/
-	public async get(options: {app: string; token: string;_noupdate?: boolean;_nocache?: boolean}) {
+	public async get(options: {app: string; token: string; _noupdate?: boolean; _nocache?: boolean}) {
 		if (!this.connected) {
 			this.connected = await this.toConnect;
 		}
