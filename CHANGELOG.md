@@ -1,13 +1,16 @@
 # CHANGELOG
 
-## 4.0.0?
+## 4.0.0
+* Breaking changes on all functions
 * Added typescript and type definitions
-* Upgraded redis Version
-* Switch from callbacks to async/await
+* Updated redis to ^4.6.11
+* Updated lodash to ^4.17.21
+* Switched from node-cache to lru-cache
+* Switched from callbacks to async/await
 
 ## 3.0.0
 
-* Dropped suppoer for Node 4 and Node 6
+* Dropped support for Node 4 and Node 6
 * Added test support for Node 12
 * Updated all dependencies
 * Added LICENSE.md file

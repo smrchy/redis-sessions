@@ -70,8 +70,8 @@ class RedisSessions extends EventEmitter {
 	private wiperInterval: ReturnType<typeof setInterval>|null = null;
 	private subscribed: boolean = false;
 	private toSubscribe: Promise<boolean> = Promise.resolve(true);
-	constructor(o: ConstructorOptions = {}) {
-		console.time("constructor");
+	constructor(o?: ConstructorOptions) {
+		o = o || {};
 		super();
 		this.redisns = o.namespace ?? "rs";
 		this.redisns += ":";
@@ -131,7 +131,6 @@ class RedisSessions extends EventEmitter {
 			}
 			this.wiperInterval = setInterval(this._wipe, wipe * 1000);
 		}
-		console.timeEnd("constructor");
 	}
 
 	/* Activity
@@ -148,7 +147,6 @@ class RedisSessions extends EventEmitter {
 			this.connected = await this.toConnect;
 		}
 		this._validate(options, ["app", "dt"]);
-		// https://github.com/StackExchange/StackExchange.Redis/issues/1034
 		const count = await this.redis.zCount(`${this.redisns}${options.app}:_users`, this._now() - options.dt, "+inf");
 		return { activity: count };
 	}
@@ -166,7 +164,7 @@ class RedisSessions extends EventEmitter {
 	* `ip` must be a valid IP4 address
 	* `ttl` *optional* Default: 7200. Positive integer between 1 and 2592000 (30 days)
 
-	* `d` *optional* Default: undefined. Object containing only string, number, boolean or null values
+	* `d` *optional* Default: undefined. Object containing additional information. Only string, number, boolean or null values
 	* `no_resave` *optional* Default: false. Boolean if true ttl will not refresh
 
 	**Example:**
@@ -196,7 +194,6 @@ class RedisSessions extends EventEmitter {
 		]);
 		const token = this._createToken();
 		// Prepopulate the multi statement
-		// console.time("multi");
 		const mc = this._createMultiStatement(options.app, token, options.id, options.ttl ?? 7200, false);
 		mc.sAdd(`${this.redisns}${options.app}:us:${options.id}`, token);
 		// Create the default session hash
@@ -226,7 +223,6 @@ class RedisSessions extends EventEmitter {
 			thesession.no_resave = 1;
 		}
 		mc.hSet(`${this.redisns}${options.app}:${token}`, thesession);
-		// console.timeEnd("multi");
 		// Run the redis statement
 		const resp = await mc.exec();
 		// curently returns number of insertet key value pairs
@@ -667,8 +663,7 @@ class RedisSessions extends EventEmitter {
 		}
 
 		// add the current time in ms to the very end seperated by a Z
-		t += "Z" + Date.now().toString(36);
-		return t;
+		return t + "Z" + Date.now().toString(36);
 	};
 
 	// returns new Error

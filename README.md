@@ -5,11 +5,16 @@
 
 [![Redis-Sessions](https://nodei.co/npm/redis-sessions.png?downloads=true&stars=true)](https://nodei.co/npm/redis-sessions/)
 
+
 This is a Node.js module to keep sessions in a Redis datastore and add some useful methods.
 
 The main purpose of this module is to generalize sessions across application server platforms. We use nginx reverse proxy to route parts of a website to a Node.js server and other parts could be Python, Ruby, .net, PHP, Coldfusion or Java servers. You can then use [rest-sessions](https://github.com/smrchy/rest-sessions) to access the same sessions on all app servers via a simple REST interface.
 
 If you use Express check out [https://www.npmjs.com/package/connect-redis-sessions](Connect-Redis-Sessions) for a ready to use middleware.
+
+## Breaking Changes
+
+Because of a switch from callbacks to async/await the current Version is incompatible with previous Versions
 
 ## Installation
 
@@ -36,9 +41,9 @@ If you use Express check out [https://www.npmjs.com/package/connect-redis-sessio
 
 With Redis running on the same machine as the test script (run via `npm test`) on a 2017 iMac:
 
-* Creates 1000 sessions in around 95ms.
-* Gets those 1000 sessions and validates them in around 80ms.
-* Removes those 1000 sessions in 8ms.
+* Creates 1000 sessions in around 140ms.
+* Gets those 1000 sessions and validates them in around 90ms.
+* Removes those 1000 sessions in 15ms.
 
 ## Cache (optional setting)
 
@@ -67,8 +72,7 @@ See [rest-sessions](https://github.com/smrchy/rest-sessions).
 ### Initialize redis-sessions
 
 ```javascript
-// import {RedisSessions} from "redis-sessions"
-RedisSessions = require("redis-sessions");
+import RedisSessions from "redis-sessions"
 //
 // Parameters for RedisSession:
 //
