@@ -14,7 +14,7 @@ If you use Express check out [https://www.npmjs.com/package/connect-redis-sessio
 
 ## Breaking Changes
 
-Because of a switch from callbacks to async/await the current Version is incompatible with previous Versions
+Due to a change from callbacks to async/await, the current version is incompatible with version 3.0.0 or lower.
 
 ## Installation
 
@@ -39,15 +39,13 @@ Because of a switch from callbacks to async/await the current Version is incompa
 
 ## Performance
 
-With Redis running on the same machine as the test script (run via `npm test`) on a 2017 iMac:
+With Redis running on the same machine as the test script (run via `npm test`) on a 2018 MacBook Pro:
 
 * Creates 1000 sessions in around 140ms.
 * Gets those 1000 sessions and validates them in around 90ms.
 * Removes those 1000 sessions in 15ms.
 
 ## Cache (optional setting)
-
-Note: If you want to use the `cachetime` option you must not supply the `client` option. TODO
 
 Modern apps might also use a lot of requests while a user is active. This results in a lot of Redis requests to look up sessions. What's faster than an in-memory cache in Redis? An in-memory cache right in your app! 
 When you enable caching you can speed up session lookups by a lot. Consider the following before you enable it:
@@ -83,8 +81,7 @@ import RedisSessions from "redis-sessions"
 // `options`, *optional* Default: {}. Additional options. See: https://github.com/mranney/node_redis#rediscreateclientport-host-options
 // `namespace`: *optional* Default: `rs`. The namespace prefix for all Redis keys used by this module.
 // `wipe`: *optional* Default: `600`. The interval in seconds after which expired sessions are wiped. Only values `0` or greater than `10` allowed. Set to `0` to disable.
-// `client`: *optional* An external RedisClient object which will be used for the connection. TODO
-// `cachetime`: *optional*  Default: `0`. Number of seconds to cache sessions in memory. Can only be used if no `client` is supplied. See the "Cache" section.
+// `cachetime`: *optional*  Default: `0`. Number of seconds to cache sessions in memory.
 rs = new RedisSessions();
 
 rsapp = "myapp";

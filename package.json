@@ -6,13 +6,14 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": "P. Liess <smrchy+npm@gmail.com>",
+  "engines": {
+    "node": ">16.0.0"
+  },
   "scripts": {
     "prebuild": "npm run lint",
     "build": "npm run build:ts",
     "build:ts": "tsc --declaration",
-    "test": "node --expose-internals node_modules/.bin/mocha ./test/test.js",
-    "test:ts": "node node_modules/.bin/mocha ./dist/test/test.js",
-    "test:ts2": "node node_modules/.bin/mocha ./dist/wcb/test.js",
+    "test": "node node_modules/.bin/mocha ./dist/test/test.js",
     "prepublishOnly": "npm run lint",
     "preversion": "npm run lint",
     "postversion": "echo 'IMPORTANT: Run `git push && git push --tags` to push created version to repo and `npm publish` to publish to npm'",
@@ -27,15 +28,12 @@
   "devDependencies": {
     "@types/lodash": "^4.14.202",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^20.6.2",
-    "@types/statuses": "^2.0.4",
-    "@types/toidentifier": "^1.0.2",
+    "@types/node": "^20.10.4",
     "@typescript-eslint/eslint-plugin": "^6.5.0",
     "eslint": "8.52.0",
     "eslint-plugin-jsdoc": "^46.5.1",
     "eslint-plugin-unicorn": "^49.0.0",
     "mocha": "^10.2.0",
-    "nodemon": "^3.0.1",
     "should": "13.2.3",
     "typescript": "^5.2.2",
     "typescript-eslint": "^0.0.1-alpha.0"

@@ -7,7 +7,7 @@ import type { RedisClientOptions } from "redis";
 import { EventEmitter } from "node:events";
 
 import { LRUCache } from "lru-cache";
-interface ConstructorOptions {
+export interface ConstructorOptions {
 	port?: number;
 	host?: string;
 	options?: RedisClientOptions; // maybe something else
@@ -58,8 +58,7 @@ export interface Session {
 	`wipe`: *optional* Default: `600`. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
 	`cachetime` (Number) *optional* Number of seconds to cache sessions in memory. Can only be used if no `client` is supplied. See the "Cache" section. Default: `0`.
 */
-// eslint-disable-next-line unicorn/prefer-event-target
-class RedisSessions extends EventEmitter {
+class RedisSessions {
 	private redisns: string;
 	private isCache = false;
 	private redis: ReturnType<typeof createClient>;
@@ -72,7 +71,6 @@ class RedisSessions extends EventEmitter {
 	private toSubscribe: Promise<boolean> = Promise.resolve(true);
 	constructor(o?: ConstructorOptions) {
 		o = o || {};
-		super();
 		this.redisns = o.namespace ?? "rs";
 		this.redisns += ":";
 
@@ -84,23 +82,6 @@ class RedisSessions extends EventEmitter {
 
 		this.connected = false;
 
-		this.redis.on("connect", () => {
-			this.connected = true;
-			this.emit("connect");
-			return;
-		});
-
-		this.redis.on("error", (err) => {
-			if (err.message.indexOf("ECONNREFUSED")) {
-				this.connected = false;
-				this.emit("disconnect");
-			} else {
-				console.error("Redis ERROR", err);
-				this.emit("error");
-			}
-			return;
-		});
-
 		// to handle async connect of client
 		this.toConnect = this.connect();
 
@@ -109,8 +90,8 @@ class RedisSessions extends EventEmitter {
 			// Setup node-cache
 			this.sessionCache = new LRUCache<string, Session>({
 				ttl: o.cachetime * 1000,
-				updateAgeOnGet: true,
-				ttlAutopurge: true
+				updateAgeOnGet: false,
+				ttlAutopurge: false
 			});
 			// Setup the Redis subscriber to listen for changes
 			if (o.options && o.options.url) { this.redissub = createClient(o.options); } else {
@@ -346,7 +327,6 @@ class RedisSessions extends EventEmitter {
 			}
 			mc.publish(`${this.redisns}cache`, `${options.app}:${options.token}`);
 		}
-
 		const resp = await mc.exec();
 		if (resp[4] === 0) {
 			await this.redis.zRem(`${this.redisns}${options.app}:_users`, `${options.id}`);
@@ -856,7 +836,7 @@ class RedisSessions extends EventEmitter {
 		}
 
 		const resp = await this.redis.zRangeByScore(`${this.redisns}SESSIONS`, "-inf", this._now());
-		if (resp.length === 0) {
+		if (resp.length > 0) {
 			for (const element of resp) {
 				const e = element.split(":");
 				const options = {
