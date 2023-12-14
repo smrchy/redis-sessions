@@ -81,7 +81,7 @@ import RedisSessions from "redis-sessions"
 // `options`, *optional* Default: {}. Additional options. See: https://github.com/mranney/node_redis#rediscreateclientport-host-options
 // `namespace`: *optional* Default: `rs`. The namespace prefix for all Redis keys used by this module.
 // `wipe`: *optional* Default: `600`. The interval in seconds after which expired sessions are wiped. Only values `0` or greater than `10` allowed. Set to `0` to disable.
-// `cachetime`: *optional*  Default: `0`. Number of seconds to cache sessions in memory.
+// `cachemax` (Number) *optional* Default: `5000`. Maximum number of sessions stored in the cache.
 rs = new RedisSessions();
 
 rsapp = "myapp";

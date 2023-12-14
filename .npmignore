@@ -1,4 +1,8 @@
 dump.rdb
 .eslintrc.js
 .gitignore
-wcb
+.npmignore
+.eslintrc
+index.ts
+test/
+tsconfig.json

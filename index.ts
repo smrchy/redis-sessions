@@ -2,18 +2,18 @@
 import _ from "lodash";
 
 import { createClient } from "redis";
+
 import type { RedisClientOptions } from "redis";
 
-import { EventEmitter } from "node:events";
-
 import { LRUCache } from "lru-cache";
-export interface ConstructorOptions {
+export interface RedisSessionsOptions {
 	port?: number;
 	host?: string;
 	options?: RedisClientOptions; // maybe something else
 	namespace?: string;
 	wipe?: number;
 	cachetime?: number;
+	cachemax?: number;
 }
 
 interface EvaluatedOption {
@@ -56,7 +56,8 @@ export interface Session {
 	`options`, *optional* Default: `{}`. Additional options. See [https://github.com/mranney/node_redis#rediscreateclientport-host-options](redis.createClient))
 	`namespace`: *optional* Default: `rs`. The namespace prefix for all Redis keys used by this module.
 	`wipe`: *optional* Default: `600`. The interval in second after which the timed out sessions are wiped. No value less than 10 allowed.
-	`cachetime` (Number) *optional* Number of seconds to cache sessions in memory. Can only be used if no `client` is supplied. See the "Cache" section. Default: `0`.
+	`cachetime` (Number) *optional* Default: `0`. Number of seconds to cache sessions in memory.
+	`cachemax` (Number) *optional* Default: `5000`. Maximum number of sessions stored in the cache.
 */
 class RedisSessions {
 	private redisns: string;
@@ -69,7 +70,7 @@ class RedisSessions {
 	private wiperInterval: ReturnType<typeof setInterval>|null = null;
 	private subscribed: boolean = false;
 	private toSubscribe: Promise<boolean> = Promise.resolve(true);
-	constructor(o?: ConstructorOptions) {
+	constructor(o?: RedisSessionsOptions) {
 		o = o || {};
 		this.redisns = o.namespace ?? "rs";
 		this.redisns += ":";
@@ -87,8 +88,9 @@ class RedisSessions {
 
 
 		if (o.cachetime && o.cachetime > 0) {
-			// Setup node-cache
+			// Setup lru-cache
 			this.sessionCache = new LRUCache<string, Session>({
+				max: o.cachemax ? (o.cachemax > 0 ? o.cachemax : 5000) : 5000,
 				ttl: o.cachetime * 1000,
 				updateAgeOnGet: false,
 				ttlAutopurge: false
@@ -186,15 +188,15 @@ class RedisSessions {
 			la: this._now(),
 			ttl: options.ttl ?? 7200
 		};
-		if (options.d) {
+		if (!options.d.___duMmYkEy) {
 			// Remove null values
 			const nullkeys = [];
 			for (const e of Object.keys(options.d)) {
 				if (options.d[e] === null) {
 					nullkeys.push(e);
 				}
-				options.d = _.omit(options.d, nullkeys);
 			}
+			options.d = _.omit(options.d, nullkeys);
 			if (_.keys(options.d).length > 0) {
 				thesession.d = JSON.stringify(options.d);
 			}
@@ -673,10 +675,10 @@ class RedisSessions {
 
 	// takes redis response and builds the corresponding session object
 	private _prepareSession(session: (string|null)[]) {
-		const now = this._now();
 		if (session[0] === null) {
 			return null;
 		}
+		const now = this._now();
 		// Create the return object
 		const o: Session = {
 			id: session[0].toString(),

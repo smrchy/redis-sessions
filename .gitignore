@@ -1,6 +1,4 @@
 node_modules/
 npm-debug.log
-dist
-./dump.rdb
-./.npmignore
-wcb
+dist/
+dump.rdb

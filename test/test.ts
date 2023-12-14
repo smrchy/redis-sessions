@@ -6,6 +6,7 @@ import { setTimeout } from "node:timers/promises";
 describe("Redis-Sessions Test", function () {
 	let rs: RedisSessions;
 	let rswithcache: RedisSessions;
+	let rswithsmallcache: RedisSessions;
 	const app1 = "test";
 	const app2 = "TEST";
 	let token1 = "";
@@ -33,6 +34,14 @@ describe("Redis-Sessions Test", function () {
 	it("get a RedisSessions instance", function (done) {
 		rswithcache = new RedisSessions({
 			cachetime: 2
+		});
+		rs.should.be.an.instanceOf(RedisSessions);
+		done();
+	});
+	it("get a RedisSessions instance", function (done) {
+		rswithsmallcache = new RedisSessions({
+			cachetime: 2,
+			cachemax: 2
 		});
 		rs.should.be.an.instanceOf(RedisSessions);
 		done();
@@ -825,6 +834,33 @@ describe("Redis-Sessions Test", function () {
 				}
 			}
 		});
+		it("Wait 1.5s", async function () {
+			await setTimeout(1500);
+		});
+		it("Get 500 sessions for app2 again: succeed (from cache)", async function () {
+			const pq = [];
+			const ref = bulksessions.slice(0, 500);
+			for (const e of ref) {
+				pq.push({
+					app: app2,
+					token: e
+				});
+			}
+			const promises = [];
+			for (const element of pq) {
+				const resp = rswithcache.get(element);
+				promises.push(resp);
+			}
+			const response = await Promise.all(promises);
+			response.length.should.equal(500);
+			for (const [k, e] of response.entries()) {
+				should.notEqual(e, null);
+				if (e) {
+					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+					e.id.should.equal("bulkuser_" + k);
+				}
+			}
+		});
 		it("Wait 2s", async function () {
 			await setTimeout(2000);
 		});
@@ -850,6 +886,41 @@ describe("Redis-Sessions Test", function () {
 					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
 					e.id.should.equal("bulkuser_" + k);
 				}
+			}
+		});
+		// Tests for cache size
+		it("Get 3 sessions for app2: succeed ", async function () {
+			const pq = [];
+			const ref = bulksessions.slice(0, 3);
+			for (const e of ref) {
+				pq.push({
+					app: app2,
+					token: e
+				});
+			}
+			const promises = [];
+			for (const element of pq) {
+				const resp = rswithsmallcache.get(element);
+				promises.push(resp);
+			}
+			const response = await Promise.all(promises);
+			for (const e of response) {
+				should.notEqual(e, null);
+				if (e) {
+					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+					e.r.should.equal(4);
+				}
+			}
+		});
+		it("Get first sessions for app2: succeed (not from cache)", async function () {
+			const resp = await rswithsmallcache.get({
+				app: app2,
+				token: bulksessions[0]
+			});
+			should.notEqual(resp, null);
+			if (resp) {
+				resp.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
+				resp.r.should.equal(5);
 			}
 		});
 	});
