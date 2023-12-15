@@ -6,7 +6,7 @@ import { createClient } from "redis";
 import type { RedisClientOptions } from "redis";
 
 import { LRUCache } from "lru-cache";
-export interface RedisSessionsOptions {
+export type RedisSessionsOptions = {
 	port?: number;
 	host?: string;
 	options?: RedisClientOptions; // maybe something else
@@ -14,9 +14,9 @@ export interface RedisSessionsOptions {
 	wipe?: number;
 	cachetime?: number;
 	cachemax?: number;
-}
+};
 
-interface EvaluatedOption {
+type EvaluatedOption = {
 	app: string;
 	token?: string;
 	id?: string;
@@ -24,21 +24,31 @@ interface EvaluatedOption {
 	ttl?: number;
 	no_resave?: boolean;
 	d?: Record<string, string|number|boolean|null>;
-	dt?: number;
+	deltaTime?: number;
 	noupdate?: boolean;
 	nochache?: boolean;
-}
+};
 
-export interface Session {
+type OptionalPropertyOf<T extends object> = Exclude<{
+	[K in keyof T]: T extends Record<K, T[K]>
+		? never
+		: K
+}[keyof T], undefined>;
+
+type SetData<T extends Record<string, string|boolean|number>> = {
+	[k in keyof T]?: k extends OptionalPropertyOf<T> ? T[k]|null : T[k];
+};
+
+export type Session<T extends Record<string, string|boolean|number> = Record<string, string|boolean|number>> = {
 	id: string;
 	r: number;
 	w: number;
 	ttl: number;
 	idle: number;
 	ip: string;
-	d?: Record<string, string|boolean|number|null>;
+	d?: T;
 	no_resave?: boolean;
-}
+};
 
 
 
@@ -59,7 +69,7 @@ export interface Session {
 	`cachetime` (Number) *optional* Default: `0`. Number of seconds to cache sessions in memory.
 	`cachemax` (Number) *optional* Default: `5000`. Maximum number of sessions stored in the cache.
 */
-class RedisSessions {
+class RedisSessions <SessionData extends Record<string, string|boolean|number>> {
 	// redis name space
 	private redisns: string;
 	// to check if the cache is enabled
@@ -67,7 +77,7 @@ class RedisSessions {
 	// redis client
 	private redis: ReturnType<typeof createClient>;
 	// lru cache to store sessions
-	private sessionCache: LRUCache<string, Session>|null = null;
+	private sessionCache: LRUCache<string, Session<SessionData>>|null = null;
 	// deletes sessions from redis based on ttl
 	private wiperInterval: ReturnType<typeof setInterval>|null = null;
 	// redissub is used to wipe cache on set/kill
@@ -79,15 +89,15 @@ class RedisSessions {
 	private connected: boolean;
 	private toConnect: Promise<boolean>;
 
-	constructor(o?: RedisSessionsOptions) {
-		o = o || {};
-		this.redisns = o.namespace ?? "rs";
+	constructor(redisSessionsOptions?: RedisSessionsOptions) {
+		redisSessionsOptions = redisSessionsOptions || {};
+		this.redisns = redisSessionsOptions.namespace ?? "rs";
 		this.redisns += ":";
 
-		if (o.options && o.options.url) {
-			this.redis = createClient(o.options);
+		if (redisSessionsOptions.options && redisSessionsOptions.options.url) {
+			this.redis = createClient(redisSessionsOptions.options);
 		} else {
-			this.redis = createClient(_.merge(o.options ?? {}, { socket: { port: o.port ?? 6379, host: o.host ?? "127.0.0.1" } }));
+			this.redis = createClient(_.merge(redisSessionsOptions.options ?? {}, { socket: { port: redisSessionsOptions.port ?? 6379, host: redisSessionsOptions.host ?? "127.0.0.1" } }));
 		}
 
 		this.connected = false;
@@ -96,17 +106,17 @@ class RedisSessions {
 		this.toConnect = this.connect();
 
 
-		if (o.cachetime && o.cachetime > 0) {
+		if (redisSessionsOptions.cachetime && redisSessionsOptions.cachetime > 0) {
 			// Setup lru-cache
-			this.sessionCache = new LRUCache<string, Session>({
-				max: o.cachemax ? (o.cachemax > 0 ? o.cachemax : 5000) : 5000,
-				ttl: o.cachetime * 1000,
+			this.sessionCache = new LRUCache< string, Session<SessionData>>({
+				max: redisSessionsOptions.cachemax ? (redisSessionsOptions.cachemax > 0 ? redisSessionsOptions.cachemax : 5000) : 5000,
+				ttl: redisSessionsOptions.cachetime * 1000,
 				updateAgeOnGet: false,
 				ttlAutopurge: false
 			});
 			// Setup the Redis subscriber to listen for changes
-			if (o.options && o.options.url) { this.redissub = createClient(o.options); } else {
-				this.redissub = createClient(_.merge(o.options ?? {}, { socket: { port: o.port ?? 6379, host: o.host ?? "127.0.0.1" } }));
+			if (redisSessionsOptions.options && redisSessionsOptions.options.url) { this.redissub = createClient(redisSessionsOptions.options); } else {
+				this.redissub = createClient(_.merge(redisSessionsOptions.options ?? {}, { socket: { port: redisSessionsOptions.port ?? 6379, host: redisSessionsOptions.host ?? "127.0.0.1" } }));
 			}
 			// Setup the subscriber
 			this.isCache = true;
@@ -116,8 +126,8 @@ class RedisSessions {
 		}
 
 
-		if (o.wipe !== 0) {
-			let wipe = o.wipe || 600;
+		if (redisSessionsOptions.wipe !== 0) {
+			let wipe = redisSessionsOptions.wipe || 600;
 			if (wipe < 10) {
 				wipe = 10;
 			}
@@ -132,14 +142,14 @@ class RedisSessions {
 	**Parameters:**
 
 	* `app` must be [a-zA-Z0-9_-] and 3-20 chars long
-	* `dt` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
+	* `deltaTime` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
 	*/
-	public async activity(options: {app: string; dt: number}) {
+	public async activity(options: {app: string; deltaTime: number}) {
 		if (!this.connected) {
 			this.connected = await this.toConnect;
 		}
-		this._validate(options, ["app", "dt"]);
-		const count = await this.redis.zCount(`${this.redisns}${options.app}:_users`, this._now() - options.dt, "+inf");
+		this._validate(options, ["app", "deltaTime"]);
+		const count = await this.redis.zCount(`${this.redisns}${options.app}:_users`, this._now() - options.deltaTime, "+inf");
 		return { activity: count };
 	}
 
@@ -170,11 +180,11 @@ class RedisSessions {
 
 	Returns the token when successful.
 	*/
-	public async create(options: {app: string; id: string; ip: string; ttl?: number; d?: Record<string, string|number|boolean|null>; no_resave?: boolean}) {
+	public async create(options: {app: string; id: string; ip: string; ttl?: number; d?: SessionData; no_resave?: boolean}) {
 		if (!this.connected) {
 			this.connected = await this.toConnect;
 		}
-		options.d = options.d || { ___duMmYkEy: null };
+		options.d = options.d || ({ ___duMmYkEy: null } as unknown) as SessionData;
 		this._validate(options, [
 			"app",
 			"id",
@@ -204,7 +214,7 @@ class RedisSessions {
 					nullkeys.push(e);
 				}
 			}
-			options.d = _.omit(options.d, nullkeys);
+			options.d = _.omit(options.d, nullkeys) as SessionData;
 			if (_.keys(options.d).length > 0) {
 				thesession.d = JSON.stringify(options.d);
 			}
@@ -237,6 +247,9 @@ class RedisSessions {
 
 	* _noupdate & nocache used by kill/set functions to skip certain parts in this function
 	* if _noupdate is set session wont be cached
+
+	important : When not supplying a d property in create and only partially setting it via the set function,
+	be aware that get can return a Session with a defined d property that is missing properties from the type
 	*/
 	public async get(options: {app: string; token: string; _noupdate?: boolean; _nocache?: boolean}) {
 		if (!this.connected) {
@@ -503,13 +516,18 @@ class RedisSessions {
 	public async set(options: {
 		app: string;
 		token: string;
-		d: Record<string, string|number|boolean|null>;
+		d: SetData<SessionData>;
 		no_resave?: boolean;
 	}) {
 		if (!this.connected) {
 			this.connected = await this.toConnect;
 		}
-		this._validate(options, [
+		this._validate(options as {
+			app: string;
+			token: string;
+			d: Record<string, string|boolean|number|null>;
+			no_resave?: boolean;
+		}, [
 			"app",
 			"token",
 			"d",
@@ -537,9 +555,9 @@ class RedisSessions {
 		}
 		// OK ready to set some data
 		if (resp.d) {
-			resp.d = _.extend(_.omit(resp.d, nullkeys), _.omit(options.d, nullkeys));
+			resp.d = _.extend(_.omit(resp.d, nullkeys), _.omit(options.d, nullkeys)) as unknown as SessionData;
 		} else {
-			resp.d = _.omit(options.d, nullkeys);
+			resp.d = _.omit(options.d, nullkeys) as unknown as SessionData;
 		}
 		// We now have a cleaned version of resp.d ready to save back to Redis.
 		// If resp.d contains no keys we want to delete the `d` key within the hash though.
@@ -575,22 +593,22 @@ class RedisSessions {
 	/* Session of App
 
 	 Returns all sessions of a single app that were active within the last *n* seconds
-	 Note: This might return a lot of data depending on `dt`. Use with care.
+	 Note: This might return a lot of data depending on `deltaTime`. Use with care.
 
 	 **Parameters:**
 
 	 * `app` must be [a-zA-Z0-9_-] and 3-20 chars long
-	 * `dt` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
+	 * `deltaTime` Delta time. Amount of seconds to check (e.g. 600 for the last 10 min.)
 	*/
 
-	public async soapp(options: {app: string; dt: number}) {
+	public async soapp(options: {app: string; deltaTime: number}) {
 		if (!this.connected) {
 			this.connected = await this.toConnect;
 		}
-		this._validate(options, ["app", "dt"]);
+		this._validate(options, ["app", "deltaTime"]);
 
 		// https://redis.io/commands/zrevrangebyscore/
-		const resp = await this.redis.zRange(`${this.redisns}${options.app}:_sessions`, "+inf", this._now() - options.dt, {
+		const resp = await this.redis.zRange(`${this.redisns}${options.app}:_sessions`, "+inf", this._now() - options.deltaTime, {
 			BY: "SCORE",
 			REV: true
 		});
@@ -689,7 +707,7 @@ class RedisSessions {
 		}
 		const now = this._now();
 		// Create the return object
-		const o: Session = {
+		const o: Session<SessionData> = {
 			id: session[0].toString(),
 			r: Number(session[1]),
 			w: Number(session[2]),
@@ -779,7 +797,7 @@ class RedisSessions {
 	};
 
 	// trows an Error if user input isn`t following rules
-	private _validate<T extends EvaluatedOption>(o: T, items: string[]) {
+	private _validate(o: EvaluatedOption, items: string[]) {
 		for (const item of items) {
 			switch (item) {
 				case "app":
@@ -805,10 +823,10 @@ class RedisSessions {
 				case "no_resave": {
 					break;
 				}
-				case "dt": {
+				case "deltaTime": {
 					const dt = Number.parseInt(`${o[item]}`, 10);
 					if (_.isNaN(dt) || !_.isNumber(dt) || dt < 10) {
-						throw this._handleError("invalidValue", { msg: "ttl must be a positive integer >= 10" });
+						throw this._handleError("invalidValue", { msg: "deltaTime must be a positive integer >= 10" });
 					}
 					break;
 				}

@@ -8,9 +8,10 @@ The main purpose of this module is to generalize sessions across application ser
 
 If you use Express check out [Connect-Redis-Sessions](https://www.npmjs.com/package/connect-redis-sessions) for a ready to use middleware.
 
-## Breaking Changes
+## !!! BREAKING CHANGES VERSION 4.0 !!!
 
-Due to a change from callbacks to async/await, the current version is incompatible with version 3.0.0 or lower.
+Due to a change from callbacks to async/await, version 4.0.0 is incompatible with version 3.x or lower.  
+[Migration-Guide](./_docs/migration_v3_to_v4.md)  
 
 ## Installation
 
@@ -78,7 +79,12 @@ import RedisSessions from "redis-sessions"
 // `namespace`: *optional* Default: `rs`. The namespace prefix for all Redis keys used by this module.
 // `wipe`: *optional* Default: `600`. The interval in seconds after which expired sessions are wiped. Only values `0` or greater than `10` allowed. Set to `0` to disable.
 // `cachemax` (Number) *optional* Default: `5000`. Maximum number of sessions stored in the cache.
-rs = new RedisSessions();
+rs = new RedisSessions<{
+  foo: string;
+  unread_msg?: number;
+  last_action?: "/read/news",
+  birthday?: "2013-08-13"
+}>();
 
 rsapp = "myapp";
 ```
@@ -128,9 +134,9 @@ const resp = await rs.set({
   app: rsapp,
   token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe",
   d: {
-    "unread_msgs": 12,
-    "last_action": "/read/news",
-    "birthday": "2013-08-13"
+    unread_msgs: 12,
+    last_action: "/read/news",
+    birthday: "2013-08-13"
   }});
   /*
   resp contains the session with the new values:
@@ -241,7 +247,7 @@ Note: Multiple sessions from the same user id will be counted as one.
 
 const resp = await rs.activity({
   app: rsapp,
-  dt: 600
+  deltaTime: 600
   });
   /*
   resp contains the activity:
@@ -258,7 +264,7 @@ Get all sessions of an app there were active within the last 10 minutes (600 sec
 
 const resp = await rs.soapp({
   app: rsapp,
-  dt: 600
+  deltaTime: 600
   });
   /*
   resp contains the sessions:
@@ -364,8 +370,12 @@ const resp = await rs.ping();
   */
 ```
 
+## Typescript Pitfalls !!!
 
-
+* If you do not specify a d property in `create` and only partially set it using the `set` function, be aware that `get` may return a session with a defined d property that is missing properties of the supplied type.
+* The `set` function only lets you delete optional keys.
+* If you use an Record<string,...> as the Generic Type you wont be able to delete properties with the `set` function. If you don`t have an more defined data type use the any type and cast your return objects.
+* If you define your type as an empty object or onl have optional parameters giving an empty object for d will still trow an error at runtime.
 
 ## CHANGELOG
 
@@ -398,7 +408,6 @@ A Node.js helper library to make tagging of items in any legacy database (SQL or
 * **Fast paging** over results with `limit` and `offset`
 * Optional **RESTful interface** via [REST-tagging](https://github.com/smrchy/rest-tagging)
 * [Read more...](https://github.com/smrchy/redis-tagging)
-
 
 ## The MIT License (MIT)
 

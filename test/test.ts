@@ -2,11 +2,27 @@ import RedisSessions from "../index";
 import should from "should";
 import { setTimeout } from "node:timers/promises";
 
+type data = {
+	foo?: string;
+	hi?: number| string;
+	lo?: number;
+	boo?: boolean;
+	boo2?: boolean;
+	str?: string;
+	count?: number;
+	premium?: boolean;
+	nix?: string;
+	a?: string|boolean;
+	b?: number|string;
+	c?: boolean|number;
+	d?: boolean|number;
+	e?: number;
+};
 
 describe("Redis-Sessions Test", function () {
-	let rs: RedisSessions;
-	let rswithcache: RedisSessions;
-	let rswithsmallcache: RedisSessions;
+	let rs: RedisSessions<data>;
+	let rswithcache: RedisSessions<data>;
+	let rswithsmallcache: RedisSessions<data>;
 	const app1 = "test";
 	const app2 = "TEST";
 	let token1 = "";
@@ -25,21 +41,21 @@ describe("Redis-Sessions Test", function () {
 	});
 
 	it("get a RedisSessions instance", function (done) {
-		rs = new RedisSessions({
+		rs = new RedisSessions<data>({
 			cachetime: 0
 		});
 		rs.should.be.an.instanceOf(RedisSessions);
 		done();
 	});
 	it("get a RedisSessions instance", function (done) {
-		rswithcache = new RedisSessions({
+		rswithcache = new RedisSessions<data>({
 			cachetime: 2
 		});
 		rs.should.be.an.instanceOf(RedisSessions);
 		done();
 	});
 	it("get a RedisSessions instance", function (done) {
-		rswithsmallcache = new RedisSessions({
+		rswithsmallcache = new RedisSessions<data>({
 			cachetime: 2,
 			cachemax: 2
 		});
@@ -183,7 +199,7 @@ describe("Redis-Sessions Test", function () {
 			token1 = resp.token;
 		});
 		it("Activity should show 1 user", async function () {
-			const resp = await rs.activity({ app: app1, dt: 60 });
+			const resp = await rs.activity({ app: app1, deltaTime: 60 });
 			resp.should.have.keys("activity");
 			resp.activity.should.equal(1);
 		});
@@ -194,6 +210,7 @@ describe("Redis-Sessions Test", function () {
 		it("Create yet another session for user1 with a `d` object: should return a token", async function () {
 			const resp = await rs.create({
 				app: app1, id: "user1", ip: "127.0.0.2", ttl: 30, d: {
+					// @ts-expect-error testing purposes
 					"foo": "bar", "nu": null, "hi": 123, "lo": -123, "boo": true, "boo2": false
 				}
 			});
@@ -220,7 +237,7 @@ describe("Redis-Sessions Test", function () {
 			}
 		});
 		it("Activity should STILL show 1 user", async function () {
-			const resp = await rs.activity({ app: app1, dt: 60 });
+			const resp = await rs.activity({ app: app1, deltaTime: 60 });
 			resp.should.have.keys("activity");
 			resp.activity.should.equal(1);
 		});
@@ -230,12 +247,12 @@ describe("Redis-Sessions Test", function () {
 			token2 = resp.token;
 		});
 		it("Activity should show 2 users", async function () {
-			const resp = await rs.activity({ app: app1, dt: 60 });
+			const resp = await rs.activity({ app: app1, deltaTime: 60 });
 			resp.should.have.keys("activity");
 			resp.activity.should.equal(2);
 		});
 		it("Sessions of App should return 4 users", async function () {
-			const resp = await rs.soapp({ app: app1, dt: 60 });
+			const resp = await rs.soapp({ app: app1, deltaTime: 60 });
 			resp.should.have.keys("sessions");
 			resp.sessions.length.should.equal(4);
 		});
@@ -257,7 +274,7 @@ describe("Redis-Sessions Test", function () {
 			token3 = resp.token;
 		});
 		it("Activity should show 1 user", async function () {
-			const resp = await rs.activity({ app: app2, dt: 60 });
+			const resp = await rs.activity({ app: app2, deltaTime: 60 });
 			resp.should.have.keys("activity");
 			resp.activity.should.equal(1);
 		});
@@ -282,7 +299,7 @@ describe("Redis-Sessions Test", function () {
 			}
 		});
 		it("Activity should show 1001 user", async function () {
-			const resp = await rs.activity({ app: app2, dt: 60 });
+			const resp = await rs.activity({ app: app2, deltaTime: 60 });
 			resp.should.have.keys("activity");
 			resp.activity.should.equal(1001);
 		});
@@ -410,7 +427,7 @@ describe("Redis-Sessions Test", function () {
 			should.equal(resp, null);
 		});
 		it("Sessions of App should return 5 users", async function () {
-			const resp = await rs.soapp({ app: app1, dt: 60 });
+			const resp = await rs.soapp({ app: app1, deltaTime: 60 });
 			should.notEqual(resp, null);
 			resp.should.have.keys("sessions");
 			resp.sessions.length.should.equal(5);
@@ -426,7 +443,7 @@ describe("Redis-Sessions Test", function () {
 			should.equal(resp, null);
 		});
 		it("Activity for app1 should show 5 users still", async function () {
-			const resp = await rs.activity({ app: app1, dt: 60 });
+			const resp = await rs.activity({ app: app1, deltaTime: 60 });
 			resp.should.have.keys("activity");
 			resp.activity.should.equal(5);
 		});

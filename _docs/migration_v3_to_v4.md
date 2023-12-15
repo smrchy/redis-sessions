@@ -7,6 +7,8 @@
 ## Migrate
 
 ```javascript
+RedisSessions = require("redis-sessions");
+rs = new RedisSessions();
 
 rs.create({
 	app: "myApp",
@@ -28,7 +30,12 @@ rs.create({
 
 ```javascript
 import RedisSessions from "redis-sessions"
-rs = new RedisSessions();
+rs = new RedisSessions<{
+  foo: string;
+  unread_msg?: number;
+  last_action?: "/read/news",
+  birthday?: "2013-08-13"
+}>();
 
 (async () =>{
 	try {
@@ -54,7 +61,12 @@ rs = new RedisSessions();
 
 ```javascript
 import RedisSessions from "redis-sessions"
-rs = new RedisSessions();
+rs = new RedisSessions<{
+  foo: string;
+  unread_msg?: number;
+  last_action?: "/read/news",
+  birthday?: "2013-08-13"
+}>();
 
 rs.create({
 	app: "myApp",
