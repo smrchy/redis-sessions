@@ -372,7 +372,7 @@ const resp = await rs.ping();
 
 ## Typescript Pitfalls !!!
 
-* If you do not specify a d property in `create` and only partially set it using the `set` function, be aware that `get` may return a session with a defined d property that is missing properties of the supplied type.
+* If you do not specify a d object in `create` and only partially set it using the `set` function, be aware that `get` may return a session with a defined d object that is missing properties of the supplied type.
 * The `set` function only lets you delete optional keys.
 * If you use an Record<string,...> as the Generic Type you wont be able to delete properties with the `set` function. If you don`t have an more defined data type use the any type and cast your return objects.
 * If you define your type as an empty object or onl have optional parameters giving an empty object for d will still trow an error at runtime.
