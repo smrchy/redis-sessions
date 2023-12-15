@@ -20,7 +20,7 @@ rs.create({
 	},
 	function(err, resp) {
 		// {token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"}
-	// save token somewhere
+		// save token somewhere
 	});
 ```
 
@@ -57,14 +57,14 @@ import RedisSessions from "redis-sessions"
 rs = new RedisSessions();
 
 rs.create({
-			app: "myApp",
-			id: "user1001",
-			ip: "192.168.22.58",
-			ttl: 3600,
-			d: { 
-				foo: "bar",
-				unread_msgs: 34
-			}
+	app: "myApp",
+	id: "user1001",
+	ip: "192.168.22.58",
+	ttl: 3600,
+	d: { 
+		foo: "bar",
+		unread_msgs: 34
+	}
 })
 	.then((resp) => {
 		// resp = {token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"}

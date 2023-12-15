@@ -1,8 +1,4 @@
 # Redis Sessions 
-
-[![Build Status](https://secure.travis-ci.org/smrchy/redis-sessions.svg?branch=master)](http://travis-ci.org/smrchy/redis-sessions)
-[![Dependency Status](https://david-dm.org/smrchy/redis-sessions.svg)](https://david-dm.org/smrchy/redis-sessions)
-
 [![Redis-Sessions](https://nodei.co/npm/redis-sessions.png?downloads=true&stars=true)](https://nodei.co/npm/redis-sessions/)
 
 
@@ -10,7 +6,7 @@ This is a Node.js module to keep sessions in a Redis datastore and add some usef
 
 The main purpose of this module is to generalize sessions across application server platforms. We use nginx reverse proxy to route parts of a website to a Node.js server and other parts could be Python, Ruby, .net, PHP, Coldfusion or Java servers. You can then use [rest-sessions](https://github.com/smrchy/rest-sessions) to access the same sessions on all app servers via a simple REST interface.
 
-If you use Express check out [https://www.npmjs.com/package/connect-redis-sessions](Connect-Redis-Sessions) for a ready to use middleware.
+If you use Express check out [Connect-Redis-Sessions](https://www.npmjs.com/package/connect-redis-sessions) for a ready to use middleware.
 
 ## Breaking Changes
 
@@ -78,7 +74,7 @@ import RedisSessions from "redis-sessions"
 //
 // `port`: *optional* Default: `6379`. The Redis port.
 // `host`, *optional* Default: `127.0.0.1`. The Redis host.
-// `options`, *optional* Default: {}. Additional options. See: https://github.com/mranney/node_redis#rediscreateclientport-host-options
+// `options`, *optional* Default: {}. Additional options. See: https://github.com/redis/node-redis/blob/master/docs/client-configuration.md
 // `namespace`: *optional* Default: `rs`. The namespace prefix for all Redis keys used by this module.
 // `wipe`: *optional* Default: `600`. The interval in seconds after which expired sessions are wiped. Only values `0` or greater than `10` allowed. Set to `0` to disable.
 // `cachemax` (Number) *optional* Default: `5000`. Maximum number of sessions stored in the cache.
@@ -136,24 +132,23 @@ const resp = await rs.set({
     "last_action": "/read/news",
     "birthday": "2013-08-13"
   }});
-    /*
-    resp contains the session with the new values:
+  /*
+  resp contains the session with the new values:
 
-    {  
-      "id":"user1001",
-      "r": 1,
-      "w": 2,
-      "idle": 1,
-      "ttl": 7200, 
-      "d":
-        {
-          "foo": "bar",
-          "unread_msgs": 12,
-          "last_action": "/read/news",
-          "birthday": "2013-08-13"
-        }
+  {
+    "id":"user1001",
+    "r": 1,
+    "w": 2,
+    "idle": 1,
+    "ttl": 7200, 
+    "d":{
+      "foo": "bar",
+      "unread_msgs": 12,
+      "last_action": "/read/news",
+      "birthday": "2013-08-13"
     }
-    */  
+  }
+  */
 ```
 
 Note: The key `foo` that we didn't supply in the `set` command will not be touched. See **Set/Update/Delete** details for details on how to remove keys.
@@ -164,25 +159,24 @@ Note: The key `foo` that we didn't supply in the `set` command will not be touch
 const resp= await rs.get({
   app: rsapp,
   token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"});
-    /*
-    resp contains the session:
+  /*
+  resp contains the session:
 
-    {  
-      "id":"user1001",
-      "r": 2,  // The number of reads on this token
-      "w": 2,  // The number of writes on this token
-      "idle": 21,  // The idle time in seconds.
-      "ttl": 7200, // Timeout after 7200 seconds idle time
-      "d":
-         {
-          "foo": "bar",
-          "unread_msgs": 12,
-          "last_action": "/read/news",
-          "birthday": "2013-08-13"
-        }
+  {  
+    "id":"user1001",
+    "r": 2,  // The number of reads on this token
+    "w": 2,  // The number of writes on this token
+    "idle": 21,  // The idle time in seconds.
+    "ttl": 7200, // Timeout after 7200 seconds idle time
+    "d":{
+      "foo": "bar",
+      "unread_msgs": 12,
+      "last_action": "/read/news",
+      "birthday": "2013-08-13"
     }
+  }
 
-    */
+  */
 ```
 
 ### Set/Update/Delete
@@ -201,23 +195,22 @@ const resp = await rs.set({
       "unread_msgs": null
       "last_action": "/read/msg/2121"
   }});
-    /*
-    resp contains the session with modified values:
+  /*
+  resp contains the session with modified values:
 
-    {  
-      "id":"user1001",
-      "r": 2,
-      "w": 3,
-      "idle": 1,
-      "ttl": 7200, 
-      "d":
-        {
-          "last_action": "/read/msg/2121",
-          "birthday": "2013-08-13",
-          "foo": "bar"
-        }
+  {
+    "id":"user1001",
+    "r": 2,
+    "w": 3,
+    "idle": 1,
+    "ttl": 7200, 
+    "d":{
+      "last_action": "/read/msg/2121",
+      "birthday": "2013-08-13",
+      "foo": "bar"
     }
-    */  
+  }
+  */
 ```
 
 ### Kill
@@ -229,11 +222,11 @@ Kill a single session by supplying app and token:
 const resp = await rs.kill({
   app: rsapp,
   token: "r30kKwv3sA6ExrJ9OmLSm4Wo3nt9MQA1yG94wn6ByFbNrVWhcwAyOM7Zhfxqh8fe"});
-    /*
-    resp contains the result:
+  /*
+  resp contains the result:
 
-    {kill: 1}
-    */  
+  {kill: 1}
+  */
 ```
 
 Note: If `{kill: 0}` is returned the session was not found.
@@ -250,11 +243,11 @@ const resp = await rs.activity({
   app: rsapp,
   dt: 600
   });
-    /*
-    resp contains the activity:
+  /*
+  resp contains the activity:
 
-    {activity: 12}
-    */
+  {activity: 12}
+  */
 ```
 
 ### Sessions of App
@@ -267,26 +260,30 @@ const resp = await rs.soapp({
   app: rsapp,
   dt: 600
   });
-    /*
-    resp contains the sessions:
+  /*
+  resp contains the sessions:
 
-    { sessions: 
-       [ { id: 'someuser123',
-           r: 1,
-           w: 1,
-           ttl: 30,
-           idle: 0,
-           ip: '127.0.0.2'
-         },
-         { id: 'anotheruser456',
-           r: 4,
-           w: 2,
-           ttl: 7200,
-      	   idle: 24,
-           ip: '127.0.0.1' }
-        ] 
-    }
-    */
+  {
+    sessions: [
+      {
+        id: 'someuser123',
+        r: 1,
+        w: 1,
+        ttl: 30,
+        idle: 0,
+        ip: '127.0.0.2'
+      },
+      {
+        id: 'anotheruser456',
+        r: 4,
+        w: 2,
+        ttl: 7200,
+        idle: 24,
+        ip: '127.0.0.1'
+      }
+    ]
+  }
+  */
 ```
 
 ### Sessions of Id
@@ -299,25 +296,30 @@ const resp = await rs.soid({
   app: rsapp,
   id: "bulkuser_999"
   });
-    /*
-    resp contains the sessions:
+  /*
+  resp contains the sessions:
 
-    { sessions: 
-       [ { id: 'bulkuser_999',
-           r: 1,
-           w: 1,
-           ttl: 30,
-           idle: 0,
-           ip: '127.0.0.2' },
-         { id: 'bulkuser_999',
-           r: 1,
-           w: 1,
-           ttl: 7200,
-           idle: 0,
-           ip: '127.0.0.1' }
-        ] 
-    }
-    */
+  {
+    sessions: [
+      {
+        id: 'bulkuser_999',
+        r: 1,
+        w: 1,
+        ttl: 30,
+        idle: 0,
+        ip: '127.0.0.2'
+      },
+      {
+        id: 'bulkuser_999',
+        r: 1,
+        w: 1,
+        ttl: 7200,
+        idle: 0,
+        ip: '127.0.0.1'
+      }
+    ]
+  }
+  */
 ```
 
 ### Kill all sessions of an id
@@ -327,11 +329,11 @@ Kill all sessions of an id within an app:
 ```javascript
 
 const resp = rs.killsoid({app: rsapp, id: 'bulkuser_999'});
-    /*
-    resp contains the result:
+  /*
+  resp contains the result:
 
-    {kill: 2} // The amount of sessions that were killed
-    */
+  {kill: 2} // The amount of sessions that were killed
+  */
 ```
 
 ### Killall
@@ -341,11 +343,11 @@ Kill all sessions of an app:
 ```javascript
 
 const resp = await rs.killall({app: rsapp});
-    /*
-    resp contains the result:
+  /*
+  resp contains the result:
 
-    {kill: 12} // The amount of sessions that were killed
-    */
+  {kill: 12} // The amount of sessions that were killed
+  */
 ```
 
 ### Ping
@@ -355,11 +357,11 @@ Ping the redis server
 ```javascript
 
 const resp = await rs.ping();
-    /*
-    resp contains the result:
+  /*
+  resp contains the result:
 
-    "PONG"
-    */
+  "PONG"
+  */
 ```
 
 
@@ -367,7 +369,7 @@ const resp = await rs.ping();
 
 ## CHANGELOG
 
-See https://github.com/smrchy/redis-sessions/blob/master/CHANGELOG.md
+See [CHANGELOG.md](https://github.com/smrchy/redis-sessions/blob/master/CHANGELOG.md)
 
 
 ## More Node.js and Redis projects?

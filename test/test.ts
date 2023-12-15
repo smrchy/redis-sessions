@@ -781,6 +781,7 @@ describe("Redis-Sessions Test", function () {
 			for (const [k, e] of response.entries()) {
 				should.notEqual(e, null);
 				if (e) {
+					e.r.should.equal(2);
 					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
 					e.id.should.equal("bulkuser_" + k);
 				}
@@ -805,6 +806,7 @@ describe("Redis-Sessions Test", function () {
 			for (const [k, e] of response.entries()) {
 				should.notEqual(e, null);
 				if (e) {
+					e.r.should.equal(2);
 					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
 					e.id.should.equal("bulkuser_" + k);
 				}
@@ -829,6 +831,7 @@ describe("Redis-Sessions Test", function () {
 			for (const [k, e] of response.entries()) {
 				should.notEqual(e, null);
 				if (e) {
+					e.r.should.equal(2);
 					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
 					e.id.should.equal("bulkuser_" + k);
 				}
@@ -856,6 +859,7 @@ describe("Redis-Sessions Test", function () {
 			for (const [k, e] of response.entries()) {
 				should.notEqual(e, null);
 				if (e) {
+					e.r.should.equal(2);
 					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
 					e.id.should.equal("bulkuser_" + k);
 				}
@@ -883,6 +887,7 @@ describe("Redis-Sessions Test", function () {
 			for (const [k, e] of response.entries()) {
 				should.notEqual(e, null);
 				if (e) {
+					e.r.should.equal(3);
 					e.should.have.keys("id", "r", "w", "ttl", "idle", "ip");
 					e.id.should.equal("bulkuser_" + k);
 				}

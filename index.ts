@@ -60,16 +60,25 @@ export interface Session {
 	`cachemax` (Number) *optional* Default: `5000`. Maximum number of sessions stored in the cache.
 */
 class RedisSessions {
+	// redis name space
 	private redisns: string;
+	// to check if the cache is enabled
 	private isCache = false;
+	// redis client
 	private redis: ReturnType<typeof createClient>;
-	private redissub: ReturnType<typeof createClient>|null = null;
-	private connected: boolean;
-	private toConnect: Promise<boolean>;
+	// lru cache to store sessions
 	private sessionCache: LRUCache<string, Session>|null = null;
+	// deletes sessions from redis based on ttl
 	private wiperInterval: ReturnType<typeof setInterval>|null = null;
+	// redissub is used to wipe cache on set/kill
+	private redissub: ReturnType<typeof createClient>|null = null;
+	// handles async work of connecting to redis
 	private subscribed: boolean = false;
 	private toSubscribe: Promise<boolean> = Promise.resolve(true);
+	// handles async work of connecting redissub and subscribing to channel
+	private connected: boolean;
+	private toConnect: Promise<boolean>;
+
 	constructor(o?: RedisSessionsOptions) {
 		o = o || {};
 		this.redisns = o.namespace ?? "rs";
@@ -161,7 +170,6 @@ class RedisSessions {
 
 	Returns the token when successful.
 	*/
-
 	public async create(options: {app: string; id: string; ip: string; ttl?: number; d?: Record<string, string|number|boolean|null>; no_resave?: boolean}) {
 		if (!this.connected) {
 			this.connected = await this.toConnect;
@@ -449,7 +457,7 @@ class RedisSessions {
 
 	// Ping
 	//
-	// Ping  the Redis server
+	// Ping the Redis server
 	public async ping() {
 		if (!this.connected) {
 
@@ -491,6 +499,7 @@ class RedisSessions {
 	 * `d` must be an object with keys whose values only consist of strings, numbers, boolean and null.
 	 * `no_resave` *optional* Default: false. Boolean if true ttl will not refresh
 	*/
+
 	public async set(options: {
 		app: string;
 		token: string;
