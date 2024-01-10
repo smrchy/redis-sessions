@@ -69,6 +69,15 @@ export type Session<T extends Record<string, string|boolean|number> = Record<str
 	`cachetime` (Number) *optional* Default: `0`. Number of seconds to cache sessions in memory.
 	`cachemax` (Number) *optional* Default: `5000`. Maximum number of sessions stored in the cache.
 */
+/**
+ *
+ *
+ * @class RedisSessions
+ *
+ * @template SessionData
+ *
+ * @param port
+ */
 class RedisSessions <SessionData extends Record<string, string|boolean|number>> {
 	// redis name space
 	private redisns: string;

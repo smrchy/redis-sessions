@@ -1,7 +1,7 @@
 # CHANGELOG
 
 ## 4.0.0
-* Breaking changes on all functions
+* !!! BREAKING CHANGES !!!
 * Added typescript and type definitions
 * Updated redis to ^4.6.11
 * Updated lodash to ^4.17.21
