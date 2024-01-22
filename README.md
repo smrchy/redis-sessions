@@ -372,6 +372,10 @@ const resp = await rs.ping();
   */
 ```
 
+## Tests
+
+Before running Test you need to build the js files (npm run build) and have a redis server running.
+
 ## Typescript Pitfalls !!!
 
 * If you do not specify a d object in `create` and only partially set it using the `set` function, be aware that `get` may return a session with a defined d object that is missing properties of the supplied type.
