@@ -1,0 +1,8 @@
+dump.rdb
+.eslintrc.js
+.gitignore
+.npmignore
+.eslintrc
+index.ts
+test/
+tsconfig.json
