@@ -4,14 +4,16 @@
 
 This is a Node.js module to keep sessions in a Redis datastore and add some useful methods.
 
-The main purpose of this module is to generalize sessions across application server platforms. We use nginx reverse proxy to route parts of a website to a Node.js server and other parts could be Python, Ruby, .net, PHP, Coldfusion or Java servers. You can then use [rest-sessions](https://github.com/smrchy/rest-sessions) to access the same sessions on all app servers via a simple REST interface.
+The main purpose of this module is to generalize sessions across application server platforms. We use nginx reverse proxy to route parts of a website to a Node.js server and other parts could be Python, Ruby, .net, PHP, Coldfusion or Java servers. You can then use [rest-sessions](https://github.com/smrchy/rest-sessions) (incompatible with version 4.0.0) to access the same sessions on all app servers via a simple REST interface.
 
-If you use Express check out [Connect-Redis-Sessions](https://www.npmjs.com/package/connect-redis-sessions) for a ready to use middleware.
+If you use Express check out [Connect-Redis-Sessions](https://www.npmjs.com/package/connect-redis-sessions) (incompatible with version 4.0.0) for a ready to use middleware.
 
 ## !!! BREAKING CHANGES VERSION 4.0 !!!
 
 Due to a change from callbacks to async/await, version 4.0.0 is incompatible with version 3.x or lower.  
-[Migration-Guide](./_docs/migration_v3_to_v4.md)  
+[Migration-Guide](./_docs/migration_v3_to_v4.md).  
+
+connect-redis-sessions and rest-sessions are both incompatible with version 4.0.0.
 
 ## Installation
 
@@ -58,9 +60,9 @@ When you enable caching you can speed up session lookups by a lot. Consider the 
 If your sessions last for 24h and the average user-session is 20m. You might as well set the `cachetime` to around 30m.
 Consider the size of your session object that has to be kept in memory. Setting the `cachetime` lower is ok. Because after all it just takes a quick Redis request to fill your cache again.
 
-## Use via REST
+## Use via REST (This is currently not compatible with the latest version)
 
-See [rest-sessions](https://github.com/smrchy/rest-sessions).
+See [rest-sessions](https://github.com/smrchy/rest-sessions) (incompatible with version 4.0.0).
 
 ## Use in Node.js
 
@@ -82,8 +84,8 @@ import RedisSessions from "redis-sessions"
 rs = new RedisSessions<{
   foo: string;
   unread_msg?: number;
-  last_action?: "/read/news",
-  birthday?: "2013-08-13"
+  last_action?: string;
+  birthday?: string;
 }>();
 
 rsapp = "myapp";
@@ -119,10 +121,10 @@ const resp = await rs.create({
 
 ```
 
-Notes: 
+Notes:
 
 * You might want to store this token in a cookie / localStorage / sessionStorage.
-* If you use Express check out [https://www.npmjs.com/package/connect-redis-sessions](Connect-Redis-Sessions).
+* If you use Express check out [Connect-Redis-Sessions](https://www.npmjs.com/package/connect-redis-sessions) (Currently incompatible with version 4.0.0).
 * As long as the `ttl` isn't reached this token can be used to get the session object for this user.
 * Remember that a user (`user1001` in this case) might have other sessions.  
 * If you want to limit the number of sessions a user might have you can use the `soid` (sessions of id) method to find other sessions of this user or the `killsoid` (Kill sessions of id) method to kill his other sessions first.
@@ -374,8 +376,8 @@ const resp = await rs.ping();
 
 * If you do not specify a d object in `create` and only partially set it using the `set` function, be aware that `get` may return a session with a defined d object that is missing properties of the supplied type.
 * The `set` function only lets you delete optional keys.
-* If you use an Record<string,...> as the Generic Type you wont be able to delete properties with the `set` function. If you don`t have an more defined data type use the any type and cast your return objects.
-* If you define your type as an empty object or onl have optional parameters giving an empty object for d will still trow an error at runtime.
+* If you use an Record<string,...> as the Generic Type you wont be able to delete properties with the `set` function. If you don`t have an more defined data type use the any type and cast your returned objects.
+* If you define your type as an empty object or only have optional parameters giving an empty object for d will still trow an error at runtime.
 
 ## CHANGELOG
 
